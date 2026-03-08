@@ -227,12 +227,12 @@ Visual effects include a grain overlay (SVG noise texture), vignette overlays, a
 
 ## Install (Use It Right Now)
 
-1. [**Download the latest build (ZIP)**](https://github.com/oranjan/touch-grass-tab/releases/latest/download/touchgrasstab.zip) — or grab the `dist/` folder directly from this repo
-2. Unzip if you downloaded the ZIP
+1. [**Download the ZIP**](https://github.com/oranjan/touch-grass-tab/raw/main/touchgrasstab.zip)
+2. Unzip it
 3. Open **`chrome://extensions`** in Chrome (or `edge://extensions` in Edge)
 4. Enable **Developer mode** (toggle in the top right)
 5. Click **Load unpacked**
-6. Select the `dist/` folder (or the unzipped folder)
+6. Select the unzipped folder
 7. Done — try visiting a blocked site and get roasted
 
 ---
