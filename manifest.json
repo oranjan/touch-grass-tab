@@ -6,7 +6,8 @@
   "permissions": [
     "storage",
     "webNavigation",
-    "tabs"
+    "tabs",
+    "contextMenus"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -21,6 +22,9 @@
   },
   "icons": {
     "128": "touchgrass.svg"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
   },
   "web_accessible_resources": [
     {
