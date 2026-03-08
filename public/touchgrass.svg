@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <!-- Ground -->
+  <ellipse cx="64" cy="112" rx="48" ry="8" fill="#4a7c3f"/>
+  <!-- Grass blades -->
+  <path d="M40 112 C38 80, 28 60, 22 40" stroke="#6abf4b" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M52 112 C50 75, 42 55, 48 28" stroke="#5cb85c" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M64 112 C64 72, 64 50, 64 20" stroke="#4caf50" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <path d="M76 112 C78 75, 86 55, 80 28" stroke="#5cb85c" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M88 112 C90 80, 100 60, 106 40" stroke="#6abf4b" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <!-- Small accent blades -->
+  <path d="M46 112 C44 90, 36 78, 34 62" stroke="#81c784" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M82 112 C84 90, 92 78, 94 62" stroke="#81c784" stroke-width="3" stroke-linecap="round" fill="none"/>
+</svg>
