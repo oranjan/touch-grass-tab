@@ -191,7 +191,7 @@ function App() {
         {/* Hero header */}
         <div className="mb-10 text-center md:mb-14">
           <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-3xl bg-primary/15 glow-toxic">
-            <img src="/touchgrass.svg" alt="" width={48} height={48} className="h-12 w-12" />
+            <img src="/icons/icon.png" alt="" width={48} height={48} className="h-12 w-12" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-primary text-glow-toxic sm:text-3xl md:text-4xl">
             TouchGrassTab

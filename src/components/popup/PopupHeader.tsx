@@ -12,7 +12,7 @@ export function PopupHeader({ onExpandClick, isFullPage }: PopupHeaderProps) {
 
       <div className="relative flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 glow-toxic">
-          <img src="/touchgrass.svg" alt="" width={28} height={28} className="h-7 w-7" />
+          <img src="/icons/icon.png" alt="" width={28} height={28} className="h-7 w-7" />
         </div>
         <div className="flex-1">
           <h1 className="text-base font-bold tracking-tight text-primary text-glow-toxic">
