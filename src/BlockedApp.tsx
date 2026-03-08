@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
+import { toast } from 'sonner'
 import { incrementVisitCount } from '@/lib/storage'
 import { getInsult, getRandomPageTitle, getRandomEmoji } from '@/lib/insults'
 import { playNextSound, spamSounds } from '@/lib/sounds'
@@ -9,10 +10,17 @@ import { SkullRain } from '@/components/blocked/SkullRain'
 // LGBT pride flag gradient
 const PRIDE_GRADIENT = 'linear-gradient(135deg, #E40303, #FF8C00, #FFED00, #008026, #004DFF, #750787)'
 
+function sanitizeSite(raw: string | null): string {
+  if (!raw) return 'unknown'
+  const cleaned = raw.replace(/[^a-zA-Z0-9.\-]/g, '')
+  if (cleaned.length === 0 || cleaned.length > 253) return 'unknown'
+  return cleaned
+}
+
 function getInitialState() {
   const params = new URLSearchParams(window.location.search)
   return {
-    site: params.get('site') ?? 'unknown',
+    site: sanitizeSite(params.get('site')),
     emoji: getRandomEmoji(),
     pageTitle: getRandomPageTitle(),
   }
@@ -57,6 +65,10 @@ export function BlockedApp() {
       setInsult(getInsult(count))
       setLoaded(true)
       playNextSound()
+    }).catch(() => {
+      toast.error('Something went wrong loading the roast')
+      setInsult(getInsult(1))
+      setLoaded(true)
     })
   }, [])
 

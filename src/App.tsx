@@ -1,10 +1,129 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { getStorage, removeSite, addPresetSites, SOCIAL_MEDIA_PRESETS, type StorageData } from '@/lib/storage'
+import { toast } from 'sonner'
+import {
+  getStorage,
+  removeSite,
+  addPresetSites,
+  removePresetSites,
+  setBlockAllMode,
+  SOCIAL_MEDIA_PRESETS,
+  TOP_30_SITES,
+  ADULT_SITES,
+  ALL_SITES,
+  type StorageData,
+} from '@/lib/storage'
 import { Button } from '@/components/ui/button'
 import { PopupHeader } from '@/components/popup/PopupHeader'
 import { SiteInput } from '@/components/popup/SiteInput'
 import { SiteList } from '@/components/popup/SiteList'
 import { StatsBar } from '@/components/popup/StatsBar'
+
+function PresetGroup({
+  label,
+  presets,
+  blockedDomains,
+  onAction,
+}: {
+  label: string
+  presets: string[]
+  blockedDomains: Set<string>
+  onAction: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const allBlocked = presets.every((d) => blockedDomains.has(d))
+  const blockedCount = presets.filter((d) => blockedDomains.has(d)).length
+
+  return (
+    <div className="rounded-xl border border-border/40 overflow-hidden">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium hover:bg-muted/40 transition-colors"
+        onClick={() => setOpen(!open)}
+      >
+        <div className="flex items-center gap-2">
+          <span className={`text-xs transition-transform ${open ? 'rotate-90' : ''}`}>&#9654;</span>
+          <span>{label}</span>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+            {blockedCount}/{presets.length}
+          </span>
+        </div>
+        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+          {!allBlocked ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 rounded-lg text-[11px] px-3"
+              onClick={async () => {
+                try {
+                  const added = await addPresetSites(presets)
+                  onAction()
+                  if (added > 0) toast.success(`${added} sites blocked`)
+                } catch {
+                  toast.error('Failed to block sites')
+                }
+              }}
+            >
+              Block all
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 rounded-lg text-[11px] px-3 border-red-500/30 text-red-400 hover:bg-red-500/10"
+              onClick={async () => {
+                try {
+                  const removed = await removePresetSites(presets)
+                  onAction()
+                  if (removed > 0) toast.success(`${removed} sites unblocked`)
+                } catch {
+                  toast.error('Failed to unblock sites')
+                }
+              }}
+            >
+              Unblock all
+            </Button>
+          )}
+        </div>
+      </button>
+      {open && (
+        <div className="border-t border-border/30 px-4 py-2 flex flex-wrap gap-1.5">
+          {presets.map((domain) => {
+            const isBlocked = blockedDomains.has(domain)
+            return (
+              <span
+                key={domain}
+                className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] ${
+                  isBlocked
+                    ? 'bg-primary/15 text-primary'
+                    : 'bg-muted/50 text-muted-foreground'
+                }`}
+              >
+                {domain}
+                {isBlocked && (
+                  <button
+                    type="button"
+                    className="ml-1.5 text-red-400 hover:text-red-300"
+                    onClick={async () => {
+                      try {
+                        await removeSite(domain)
+                        onAction()
+                        toast.success(`${domain} unblocked`)
+                      } catch {
+                        toast.error('Failed to unblock')
+                      }
+                    }}
+                  >
+                    &times;
+                  </button>
+                )}
+              </span>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function App() {
   const isFullPage = useMemo(() => window.innerWidth > 400, [])
@@ -12,10 +131,13 @@ function App() {
   const [data, setData] = useState<StorageData>({
     blockedSites: [],
     totalBlocks: 0,
+    blockAllMode: false,
   })
 
   const loadData = useCallback(() => {
-    getStorage().then(setData)
+    getStorage().then(setData).catch(() => {
+      toast.error('Failed to load blocked sites')
+    })
   }, [])
 
   useEffect(() => {
@@ -23,8 +145,13 @@ function App() {
   }, [loadData])
 
   const handleRemove = async (domain: string) => {
-    await removeSite(domain)
-    loadData()
+    try {
+      await removeSite(domain)
+      loadData()
+      toast.success(`${domain} unblocked`)
+    } catch {
+      toast.error('Failed to remove site. Try again.')
+    }
   }
 
   const handleExpand = () => {
@@ -33,6 +160,11 @@ function App() {
     window.close()
   }
 
+  const blockedDomains = useMemo(
+    () => new Set(data.blockedSites.map((s) => s.domain)),
+    [data.blockedSites],
+  )
+
   const content = (
     <>
       <PopupHeader onExpandClick={handleExpand} isFullPage={isFullPage} />
@@ -40,21 +172,6 @@ function App() {
         existingDomains={data.blockedSites.map((s) => s.domain)}
         onSiteAdded={loadData}
       />
-      {!SOCIAL_MEDIA_PRESETS.every((d) => data.blockedSites.some((s) => s.domain === d)) && (
-        <div className="px-4 pb-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full rounded-xl text-xs"
-            onClick={async () => {
-              await addPresetSites()
-              loadData()
-            }}
-          >
-            Block all social media
-          </Button>
-        </div>
-      )}
       <SiteList sites={data.blockedSites} onRemove={handleRemove} />
       <StatsBar siteCount={data.blockedSites.length} totalBlocks={data.totalBlocks} />
     </>
@@ -90,21 +207,74 @@ function App() {
               existingDomains={data.blockedSites.map((s) => s.domain)}
               onSiteAdded={loadData}
             />
-            {!SOCIAL_MEDIA_PRESETS.every((d) => data.blockedSites.some((s) => s.domain === d)) && (
-              <div className="mt-3">
+          </div>
+
+          {/* Bulk block groups */}
+          <div className="border-b border-border/40 px-4 py-4 sm:px-8 space-y-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Quick block</h3>
+            <PresetGroup
+              label="Social Media"
+              presets={SOCIAL_MEDIA_PRESETS}
+              blockedDomains={blockedDomains}
+              onAction={loadData}
+            />
+            <PresetGroup
+              label="Top 30 Sites"
+              presets={TOP_30_SITES}
+              blockedDomains={blockedDomains}
+              onAction={loadData}
+            />
+            <PresetGroup
+              label="Adult Sites"
+              presets={ADULT_SITES}
+              blockedDomains={blockedDomains}
+              onAction={loadData}
+            />
+            <PresetGroup
+              label="All Preset Sites"
+              presets={ALL_SITES}
+              blockedDomains={blockedDomains}
+              onAction={loadData}
+            />
+
+            {/* Block Everything toggle */}
+            <div className={`rounded-xl border overflow-hidden ${data.blockAllMode ? 'border-red-500/40 bg-red-500/5' : 'border-border/40'}`}>
+              <div className="flex items-center justify-between gap-3 px-4 py-3">
+                <div>
+                  <span className="text-sm font-medium">Block Everything</span>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Redirects <em>every</em> website to the roast page. Nuclear option.
+                  </p>
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full rounded-xl text-xs"
+                  className={`h-7 rounded-lg text-[11px] px-3 shrink-0 ${
+                    data.blockAllMode
+                      ? 'border-red-500/30 text-red-400 hover:bg-red-500/10'
+                      : ''
+                  }`}
                   onClick={async () => {
-                    await addPresetSites()
-                    loadData()
+                    try {
+                      await setBlockAllMode(!data.blockAllMode)
+                      loadData()
+                      toast.success(data.blockAllMode ? 'Block-everything mode disabled' : 'Block-everything mode enabled — every site will be roasted')
+                    } catch {
+                      toast.error('Failed to toggle block-everything mode')
+                    }
                   }}
                 >
-                  Block all social media
+                  {data.blockAllMode ? 'Disable' : 'Enable'}
                 </Button>
               </div>
-            )}
+            </div>
+          </div>
+
+          {/* Search hint */}
+          <div className="px-4 py-2 sm:px-8 text-center">
+            <p className="text-[11px] text-muted-foreground">
+              Use <kbd className="rounded border border-border/60 bg-muted/50 px-1.5 py-0.5 text-[10px] font-mono">Ctrl+F</kbd> / <kbd className="rounded border border-border/60 bg-muted/50 px-1.5 py-0.5 text-[10px] font-mono">Cmd+F</kbd> to find a specific site
+            </p>
           </div>
 
           {/* Site list */}

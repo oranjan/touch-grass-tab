@@ -20,6 +20,7 @@ export function playNextSound(): void {
 }
 
 export function playSound(name: string): void {
+  if (!SOUNDS.includes(name)) return
   const url = typeof chrome !== 'undefined' && chrome.runtime?.getURL
     ? chrome.runtime.getURL(`sounds/${name}`)
     : `/sounds/${name}`

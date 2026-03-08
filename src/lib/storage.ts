@@ -1,5 +1,4 @@
 export const SOCIAL_MEDIA_PRESETS: string[] = [
-  // Social media
   'facebook.com',
   'instagram.com',
   'twitter.com',
@@ -11,17 +10,185 @@ export const SOCIAL_MEDIA_PRESETS: string[] = [
   'linkedin.com',
   'pinterest.com',
   'tumblr.com',
-  // Video / streaming
   'youtube.com',
   'twitch.tv',
-  // Messaging / forums
   'discord.com',
   'telegram.org',
   'web.whatsapp.com',
-  // Time sinks
   'buzzfeed.com',
   '9gag.com',
   'imgur.com',
+]
+
+export const TOP_30_SITES: string[] = [
+  // Search & portals
+  'google.com',
+  'bing.com',
+  'yahoo.com',
+  'baidu.com',
+  'yandex.com',
+  // Social media (overlap with SOCIAL_MEDIA_PRESETS)
+  'facebook.com',
+  'instagram.com',
+  'twitter.com',
+  'x.com',
+  'tiktok.com',
+  'reddit.com',
+  'linkedin.com',
+  'pinterest.com',
+  // Video & streaming
+  'youtube.com',
+  'twitch.tv',
+  'netflix.com',
+  // Messaging
+  'discord.com',
+  'web.whatsapp.com',
+  'telegram.org',
+  // News & media
+  'cnn.com',
+  'bbc.com',
+  'nytimes.com',
+  // Shopping
+  'amazon.com',
+  'ebay.com',
+  'aliexpress.com',
+  // Entertainment & misc
+  'wikipedia.org',
+  'fandom.com',
+  'imdb.com',
+  'quora.com',
+  'medium.com',
+  'spotify.com',
+]
+
+export const ADULT_SITES: string[] = [
+  'pornhub.com',
+  'xvideos.com',
+  'xhamster.com',
+  'xnxx.com',
+  'redtube.com',
+  'youporn.com',
+  'spankbang.com',
+  'eporner.com',
+  'tube8.com',
+  'pornone.com',
+  'ixxx.com',
+  'tnaflix.com',
+  'drtuber.com',
+  'hclips.com',
+  'porntrex.com',
+  'thumbzilla.com',
+  'fuq.com',
+  'beeg.com',
+  'porn.com',
+  'chaturbate.com',
+  'stripchat.com',
+  'bongacams.com',
+  'cam4.com',
+  'livejasmin.com',
+  'onlyfans.com',
+  'fansly.com',
+  'redgifs.com',
+]
+
+export const ALL_SITES: string[] = [
+  ...new Set([
+    ...SOCIAL_MEDIA_PRESETS,
+    ...TOP_30_SITES,
+    ...ADULT_SITES,
+    // Additional sites
+    'snapchat.com',
+    'threads.net',
+    'tumblr.com',
+    'buzzfeed.com',
+    '9gag.com',
+    'imgur.com',
+    'dailymotion.com',
+    'vimeo.com',
+    'soundcloud.com',
+    'pandora.com',
+    'hulu.com',
+    'disneyplus.com',
+    'hbomax.com',
+    'primevideo.com',
+    'crunchyroll.com',
+    'twitch.tv',
+    'kick.com',
+    'rumble.com',
+    'bilibili.com',
+    'weibo.com',
+    'vk.com',
+    'ok.ru',
+    'line.me',
+    'kakaotalk.com',
+    'wechat.com',
+    'signal.org',
+    'slack.com',
+    'teams.microsoft.com',
+    'zoom.us',
+    'skype.com',
+    'clubhouse.com',
+    'mastodon.social',
+    'bluesky.social',
+    'truth-social.com',
+    'parler.com',
+    'gab.com',
+    'flickr.com',
+    'deviantart.com',
+    'behance.net',
+    'dribbble.com',
+    'producthunt.com',
+    'hackernews.com',
+    'news.ycombinator.com',
+    'digg.com',
+    'slashdot.org',
+    'techcrunch.com',
+    'theverge.com',
+    'mashable.com',
+    'huffpost.com',
+    'foxnews.com',
+    'washingtonpost.com',
+    'theguardian.com',
+    'reuters.com',
+    'apnews.com',
+    'vice.com',
+    'vox.com',
+    'wired.com',
+    'arstechnica.com',
+    'engadget.com',
+    'gizmodo.com',
+    'kotaku.com',
+    'polygon.com',
+    'ign.com',
+    'gamespot.com',
+    'twitch.tv',
+    'roblox.com',
+    'steampowered.com',
+    'epicgames.com',
+    'ea.com',
+    'walmart.com',
+    'target.com',
+    'bestbuy.com',
+    'etsy.com',
+    'wish.com',
+    'shein.com',
+    'temu.com',
+    'flipkart.com',
+    'shopify.com',
+    'zillow.com',
+    'craigslist.org',
+    'yelp.com',
+    'tripadvisor.com',
+    'booking.com',
+    'airbnb.com',
+    'expedia.com',
+    'kayak.com',
+    'indeed.com',
+    'glassdoor.com',
+    'monster.com',
+    'fiverr.com',
+    'upwork.com',
+  ]),
 ]
 
 export interface BlockedSite {
@@ -33,9 +200,10 @@ export interface BlockedSite {
 export interface StorageData {
   blockedSites: BlockedSite[]
   totalBlocks: number
+  blockAllMode: boolean
 }
 
-const DEFAULTS: StorageData = { blockedSites: [], totalBlocks: 0 }
+const DEFAULTS: StorageData = { blockedSites: [], totalBlocks: 0, blockAllMode: false }
 const STORAGE_KEY = 'touchgrasstab'
 
 const isChromeExtension = typeof chrome !== 'undefined' && !!chrome.storage?.local
@@ -62,6 +230,7 @@ export async function getStorage(): Promise<StorageData> {
   return {
     blockedSites: (data.blockedSites as BlockedSite[] | undefined) ?? DEFAULTS.blockedSites,
     totalBlocks: (data.totalBlocks as number | undefined) ?? DEFAULTS.totalBlocks,
+    blockAllMode: (data.blockAllMode as boolean | undefined) ?? DEFAULTS.blockAllMode,
   }
 }
 
@@ -72,6 +241,10 @@ async function setStorage(data: Partial<StorageData>): Promise<void> {
     return
   }
   await chrome.storage.local.set(data)
+}
+
+export async function setBlockAllMode(enabled: boolean): Promise<void> {
+  await setStorage({ blockAllMode: enabled })
 }
 
 export async function addSite(domain: string): Promise<void> {
@@ -96,10 +269,10 @@ export async function incrementVisitCount(domain: string): Promise<number> {
   return site.visitCount
 }
 
-export async function addPresetSites(): Promise<number> {
+export async function addPresetSites(presets: string[] = SOCIAL_MEDIA_PRESETS): Promise<number> {
   const { blockedSites, totalBlocks } = await getStorage()
   let added = 0
-  for (const domain of SOCIAL_MEDIA_PRESETS) {
+  for (const domain of presets) {
     if (!blockedSites.some((s) => s.domain === domain)) {
       blockedSites.push({ domain, addedAt: Date.now(), visitCount: 0 })
       added++
@@ -107,6 +280,15 @@ export async function addPresetSites(): Promise<number> {
   }
   if (added > 0) await setStorage({ blockedSites, totalBlocks })
   return added
+}
+
+export async function removePresetSites(presets: string[]): Promise<number> {
+  const { blockedSites, totalBlocks } = await getStorage()
+  const toRemove = new Set(presets)
+  const filtered = blockedSites.filter((s) => !toRemove.has(s.domain))
+  const removed = blockedSites.length - filtered.length
+  if (removed > 0) await setStorage({ blockedSites: filtered, totalBlocks })
+  return removed
 }
 
 export function onStorageChange(

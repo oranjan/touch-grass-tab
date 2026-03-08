@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { addSite } from '@/lib/storage'
@@ -32,9 +33,14 @@ export function SiteInput({ existingDomains, onSiteAdded }: SiteInputProps) {
       return
     }
 
-    await addSite(domain)
-    setValue('')
-    onSiteAdded()
+    try {
+      await addSite(domain)
+      setValue('')
+      onSiteAdded()
+      toast.success(`${domain} blocked`)
+    } catch {
+      toast.error('Failed to block site. Try again.')
+    }
   }
 
   return (

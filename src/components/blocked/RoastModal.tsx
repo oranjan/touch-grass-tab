@@ -29,10 +29,12 @@ export function RoastModal({ site, insult, visitCount, emoji, isIntervention, is
   const shameLabel = SHAME_LABELS[visitCount % SHAME_LABELS.length]
 
   const handleTouchGrass = () => {
-    window.close()
-    setTimeout(() => {
-      window.location.href = 'https://www.google.com/search?q=parks+near+me'
-    }, 100)
+    const parksUrl = 'https://www.google.com/search?q=parks+near+me'
+    if (typeof chrome !== 'undefined' && chrome.tabs?.update) {
+      chrome.tabs.update({ url: parksUrl })
+    } else {
+      window.location.href = parksUrl
+    }
   }
 
   // Hard-coded high contrast colors so text is ALWAYS readable

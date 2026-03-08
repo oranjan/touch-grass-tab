@@ -1,10 +1,13 @@
 import type { BlockedSite } from './lib/storage'
 import { normalizeDomain } from './lib/url-utils'
 
-async function getBlockedDomains(): Promise<string[]> {
-  const data = await chrome.storage.local.get(['blockedSites'])
+async function getBlockConfig(): Promise<{ domains: string[]; blockAll: boolean }> {
+  const data = await chrome.storage.local.get(['blockedSites', 'blockAllMode'])
   const sites = (data.blockedSites as BlockedSite[] | undefined) ?? []
-  return sites.map((s) => s.domain.toLowerCase())
+  return {
+    domains: sites.map((s) => s.domain.toLowerCase()),
+    blockAll: (data.blockAllMode as boolean | undefined) ?? false,
+  }
 }
 
 function matchesDomain(hostname: string, domains: string[]): string | null {
@@ -17,92 +20,71 @@ function matchesDomain(hostname: string, domains: string[]): string | null {
   return null
 }
 
+// Returns the matched domain string if the URL should be blocked, or null
+async function shouldBlock(url: string): Promise<string | null> {
+  let hostname: string
+  try {
+    hostname = new URL(url).hostname
+  } catch {
+    return null
+  }
+
+  const { domains, blockAll } = await getBlockConfig()
+
+  if (blockAll) return hostname
+
+  return matchesDomain(hostname, domains)
+}
+
 // Track tabs we've already redirected to avoid infinite loops
 const redirectedTabs = new Set<number>()
 
 // Use tabs.onUpdated to catch ALL navigations, including 302 redirects from Google
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-  // Only act when the URL actually changes
   if (!changeInfo.url) return
-
-  let hostname: string
-  try {
-    hostname = new URL(changeInfo.url).hostname
-  } catch {
-    return
-  }
-
-  // Don't redirect if already on our extension page
   if (changeInfo.url.startsWith(chrome.runtime.getURL(''))) {
     redirectedTabs.delete(tabId)
     return
   }
-
-  // Avoid double-redirecting the same tab
   if (redirectedTabs.has(tabId)) return
 
-  const domains = await getBlockedDomains()
-  const domain = matchesDomain(hostname, domains)
+  const domain = await shouldBlock(changeInfo.url)
   if (!domain) return
 
-  const blockedUrl = chrome.runtime.getURL(
-    `blocked.html?site=${encodeURIComponent(domain)}`
-  )
-
   redirectedTabs.add(tabId)
-  chrome.tabs.update(tabId, { url: blockedUrl })
+  chrome.tabs.update(tabId, {
+    url: chrome.runtime.getURL(`blocked.html?site=${encodeURIComponent(domain)}`),
+  })
 })
 
 // Catch initial navigations before they start
 chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   if (details.frameId !== 0) return
-
-  let hostname: string
-  try {
-    hostname = new URL(details.url).hostname
-  } catch {
-    return
-  }
-
   if (details.url.startsWith(chrome.runtime.getURL(''))) return
   if (redirectedTabs.has(details.tabId)) return
 
-  const domains = await getBlockedDomains()
-  const domain = matchesDomain(hostname, domains)
+  const domain = await shouldBlock(details.url)
   if (!domain) return
 
-  const blockedUrl = chrome.runtime.getURL(
-    `blocked.html?site=${encodeURIComponent(domain)}`
-  )
-
   redirectedTabs.add(details.tabId)
-  chrome.tabs.update(details.tabId, { url: blockedUrl })
+  chrome.tabs.update(details.tabId, {
+    url: chrome.runtime.getURL(`blocked.html?site=${encodeURIComponent(domain)}`),
+  })
 })
 
 // Catch navigations AFTER server-side redirects resolve (e.g. google.com/url → instagram.com)
 chrome.webNavigation.onCommitted.addListener(async (details) => {
   if (details.frameId !== 0) return
-
-  let hostname: string
-  try {
-    hostname = new URL(details.url).hostname
-  } catch {
-    return
-  }
-
   if (details.url.startsWith(chrome.runtime.getURL(''))) return
   if (redirectedTabs.has(details.tabId)) return
 
-  const domains = await getBlockedDomains()
-  const domain = matchesDomain(hostname, domains)
+  const domain = await shouldBlock(details.url)
   if (!domain) return
 
-  const blockedUrl = chrome.runtime.getURL(
-    `blocked.html?site=${encodeURIComponent(domain)}`
-  )
-
   redirectedTabs.add(details.tabId)
-  chrome.tabs.update(details.tabId, { url: blockedUrl })
+  chrome.tabs.update(details.tabId, {
+    url: chrome.runtime.getURL(`blocked.html?site=${encodeURIComponent(domain)}`),
+  })
 })
 
 // Clean up when a tab finishes loading our blocked page or is closed
