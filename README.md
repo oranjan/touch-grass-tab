@@ -6,22 +6,69 @@ A Chrome extension that blocks distracting websites and roasts you with escalati
 
 ### [> Download TouchGrassTab (ZIP)](https://github.com/oranjan/touch-grass-tab/raw/main/touchgrasstab.zip)
 
-**Quick install:** Download the ZIP → Unzip → Open `chrome://extensions` → Enable Developer mode → Load unpacked → Select the folder → Done.
+**Quick install:** Download the ZIP > Unzip > Open `chrome://extensions` > Enable Developer mode > Load unpacked > Select the folder > Done.
 
 ---
 
+## What It Does
+
+You add websites you want to stop visiting. When you try to open one, the extension hijacks the page and hits you with:
+
+- A **flashbang** — strobing colors, spinning text, and sound spam
+- A **roast** — pulled from 35+ insults that get meaner the more you visit
+- A **skull rain** — falling emoji chaos raining down on your screen
+- A **"Touch Grass" button** — opens Google Maps to find parks near you
+
+The punishment escalates. First visit? A quick 2-second flash and a mild roast. Tenth visit? 32 seconds of chaos, screen shaking, 40 falling skulls, and an "INTERVENTION MODE" warning. It's designed to make you not want to come back.
+
 ## Features
 
-- **Site Blocking** — Add any website to your block list. Attempts to visit blocked sites are intercepted and redirected to a roast page.
-- **Escalating Roast System** — 35+ insults across 5 tiers that get progressively harsher based on how many times you've tried visiting a blocked site.
-- **Flashbang Mode** — Blocked page opens with a disorienting strobe sequence, spinning text, and sound spam before delivering the roast.
-- **Intervention Mode** — After 10+ visits to the same site, the extension activates screen shake, increased skull rain, and warning badges.
-- **Sound Effects** — 10 sound effects (bruh, vine boom, sad trombone, fart, etc.) that fire during the flashbang sequence.
-- **6 Themes** — Skibidi Sigma, Fanum Tax, Rizz Mode, NPC Mode, Ohio Final Boss, Aura Points — each with custom color palettes and CSS variables.
-- **Social Media Presets** — One-click button to block 25 common social media sites.
-- **Visit Tracking** — Tracks how many times you've tried visiting each blocked site with per-site and total counters.
-- **Touch Grass Button** — Opens a Google search for "parks near me" so you can actually go outside.
+- **Site Blocking** — Add any website. It gets intercepted and redirected to a roast page.
+- **Escalating Roasts** — 5 tiers of insults that get progressively harsher (mild > medium > harsh > nuclear > final boss).
+- **Flashbang Mode** — Strobing colors, spinning text, hue rotation, and 10 sound effects spamming every 400ms.
+- **Intervention Mode** — After 10+ visits: screen shake, double the skull rain, warning badges.
+- **6 Themes** — Skibidi Sigma, Fanum Tax, Rizz Mode, NPC Mode, Ohio Final Boss, Aura Points.
+- **Social Media Presets** — One click to block 25 common social media sites.
+- **Visit Tracking** — Per-site and total counters so you can see your shame in numbers.
+- **Touch Grass Button** — Google Maps parks search. Go outside.
 - **Reduced Motion Support** — Respects `prefers-reduced-motion` for accessibility.
+
+## Install
+
+1. [**Download the ZIP**](https://github.com/oranjan/touch-grass-tab/raw/main/touchgrasstab.zip)
+2. Unzip it
+3. Open **`chrome://extensions`** in Chrome (or `edge://extensions` in Edge)
+4. Enable **Developer mode** (toggle in the top right)
+5. Click **Load unpacked**
+6. Select the unzipped folder
+7. Done — try visiting a blocked site and get roasted
+
+## Themes
+
+| Theme | Vibe |
+|-------|------|
+| Skibidi Sigma | Neon green on void black, terminal grindset |
+| Fanum Tax | Purple + magenta, main character energy |
+| Rizz Mode | Warm sunset coral on cream, touch grass aesthetic |
+| NPC Mode | Navy + cyan, lo-fi zen vibes |
+| Ohio Final Boss | Acid yellow, Y2K maximalist chaos |
+| Aura Points | Forest green + warm gold, anti-hustle |
+
+## Permissions
+
+| Permission | Why |
+|-----------|-----|
+| `storage` | Save your blocked sites and visit counts |
+| `webNavigation` | Detect when you navigate to a blocked site |
+| `tabs` | Redirect your tab to the roast page |
+| `<all_urls>` | Needed to intercept navigation to any website |
+
+---
+---
+
+# Technical Documentation
+
+Everything below is the technical breakdown of how the extension works — architecture, data flow, file structure, and implementation details. This section is for developers, AI agents, and anyone who wants to understand or contribute to the codebase.
 
 ---
 
@@ -38,24 +85,16 @@ A Chrome extension that blocks distracting websites and roasts you with escalati
 | Testing | Vitest + Testing Library + jsdom |
 | Linting | ESLint with TypeScript support |
 
----
-
 ## Project Structure
 
 ```
 TouchGrassTab/
 ├── public/
 │   ├── sounds/                      # 10 sound effects (.mp3)
-│   │   ├── bruh.mp3
-│   │   ├── clown-horn.mp3
-│   │   ├── crickets.mp3
-│   │   ├── emergency-meeting.mp3
-│   │   ├── fart.mp3
-│   │   ├── record-scratch.mp3
-│   │   ├── rizz.mp3
-│   │   ├── sad-trombone.mp3
-│   │   ├── vine-boom.mp3
-│   │   └── wow.mp3
+│   │   ├── bruh.mp3, clown-horn.mp3, crickets.mp3
+│   │   ├── emergency-meeting.mp3, fart.mp3
+│   │   ├── record-scratch.mp3, rizz.mp3
+│   │   ├── sad-trombone.mp3, vine-boom.mp3, wow.mp3
 │   └── touchgrass.svg               # Extension icon
 │
 ├── src/
@@ -78,10 +117,7 @@ TouchGrassTab/
 │   │   │   ├── RoastModal.tsx       # Roast message card with comeback + CTA
 │   │   │   └── SkullRain.tsx        # Falling emoji animation overlay
 │   │   └── ui/                      # Shadcn base components
-│   │       ├── button.tsx
-│   │       ├── badge.tsx
-│   │       ├── input.tsx
-│   │       └── card.tsx
+│   │       ├── button.tsx, badge.tsx, input.tsx, card.tsx
 │   │
 │   └── lib/                         # Utility modules
 │       ├── storage.ts               # Chrome storage API wrapper + localStorage fallback
@@ -90,94 +126,125 @@ TouchGrassTab/
 │       ├── themes.ts                # 6 theme definitions + CSS variable application
 │       ├── url-utils.ts             # Domain normalization (URL → clean domain)
 │       ├── utils.ts                 # cn() helper (clsx + tailwind-merge)
-│       └── __tests__/               # Unit tests
-│           ├── storage.test.ts      # 10 tests
-│           ├── insults.test.ts      # 8 tests
-│           ├── url-utils.test.ts    # 10 tests
-│           ├── sounds.test.ts       # 6 tests
-│           └── themes.test.ts       # 8 tests
+│       └── __tests__/               # Unit tests (42 tests across 5 files)
 │
 ├── index.html                       # Popup HTML shell
 ├── blocked.html                     # Blocked page HTML shell
 ├── manifest.json                    # Chrome Extension Manifest V3
 ├── vite.config.ts                   # Vite + CRX plugin config
-├── tsconfig.json                    # Base TypeScript config
-├── tsconfig.app.json                # App TypeScript config (ES2022)
+├── tsconfig.json / tsconfig.app.json
 ├── components.json                  # Shadcn UI configuration
 ├── eslint.config.js                 # ESLint rules (350 line max per file)
 └── package.json                     # Dependencies and scripts
 ```
 
----
-
 ## Architecture
 
-### Extension Entry Points
+### Three Entry Points
 
-The extension has three independent entry points:
+The extension has three independent entry points that never share runtime context:
 
-1. **Popup** (`index.html` → `main.tsx` → `App.tsx`) — The toolbar popup UI where users manage their blocked sites list. Renders at 360×480px in popup mode or full-page when opened in a tab.
+1. **Popup** (`index.html` → `main.tsx` → `App.tsx`) — The toolbar popup UI where users manage their blocked sites list. Renders at 360×480px in popup mode or full-page when opened in a tab (`window.innerWidth > 400` detection).
 
 2. **Blocked Page** (`blocked.html` → `blocked-main.tsx` → `BlockedApp.tsx`) — The full-page roast experience shown when a user tries to visit a blocked site. Receives the blocked domain via `?site=` query parameter.
 
-3. **Service Worker** (`background.ts`) — Runs in the background with no UI. Listens to `chrome.tabs.onUpdated` and `chrome.webNavigation.onBeforeNavigate` events. When a navigation matches a blocked domain, it redirects the tab to `blocked.html`.
+3. **Service Worker** (`background.ts`) — Runs in the background with no UI. Listens to Chrome navigation events and redirects matching tabs to `blocked.html`.
 
 ### Data Flow
 
 ```
 User navigates to blocked site
     ↓
-Service Worker (background.ts) detects navigation
+Service Worker detects navigation via 3 listeners:
+  • chrome.webNavigation.onBeforeNavigate (initial request)
+  • chrome.tabs.onUpdated (all URL changes, catches 302s)
+  • chrome.webNavigation.onCommitted (post-redirect)
     ↓
-Checks domain against blocked list in Chrome Storage
+Extract hostname → normalize → check against blocked list
     ↓
-Redirects tab to blocked.html?site={domain}
+Match found → chrome.tabs.update(tabId, { url: blocked.html?site=domain })
     ↓
-BlockedApp.tsx renders flashbang → roast modal → skull rain
+Tab added to redirectedTabs Set (prevents infinite redirect loops)
     ↓
-incrementVisitCount() updates Chrome Storage
+BlockedApp.tsx loads:
+  1. Sanitize ?site= parameter (strip non-domain chars)
+  2. incrementVisitCount(domain) in Chrome Storage
+  3. Calculate flashbang duration: 2000ms + (visitCount × 3000ms)
+  4. Phase 1: White flash (instant)
+  5. Phase 2: Flashbang (strobing + sound spam every 400ms)
+  6. Phase 3: RoastModal + SkullRain
     ↓
 Popup reflects updated visit counts on next open
 ```
 
-### Storage
+### Why Triple Navigation Listeners?
 
-Data is persisted via `chrome.storage.local` with a localStorage fallback for development/testing outside the extension context.
+Some navigations (especially redirect chains from link shorteners, Google results, etc.) are only visible at certain stages of the Chrome navigation pipeline. Using three listeners — `onBeforeNavigate`, `onUpdated`, and `onCommitted` — ensures no navigation slips through regardless of how the user reaches the blocked site.
 
-**Schema:**
+### Redirect Loop Prevention
+
+A `redirectedTabs` Set tracks tab IDs currently being redirected. If a tab is already in the set, the redirect is skipped. Tabs are removed from the set when they finish loading or are closed. This prevents the blocked page URL itself from triggering another redirect.
+
+### Domain Matching
+
+```typescript
+// Supports exact and subdomain matching
+const h = hostname.toLowerCase()
+for (const domain of domains) {
+  if (h === domain || h.endsWith(`.${domain}`)) {
+    return domain  // "www.instagram.com" matches "instagram.com"
+  }
+}
+```
+
+This prevents bypass via subdomains — blocking `instagram.com` also blocks `www.instagram.com`, `m.instagram.com`, etc.
+
+### URL Normalization
+
+`src/lib/url-utils.ts` converts any user input into a clean domain:
+- `https://www.instagram.com/reels/` → `instagram.com`
+- `WWW.TWITTER.COM` → `twitter.com`
+- `reddit.com/r/programming` → `reddit.com`
+
+## Storage
+
+### Schema
+
 ```typescript
 interface BlockedSite {
   domain: string      // normalized domain (e.g. "instagram.com")
-  addedAt: number     // timestamp
+  addedAt: number     // timestamp in ms
   visitCount: number  // times user tried to visit
 }
 
 interface StorageData {
   blockedSites: BlockedSite[]
-  totalBlocks: number
+  totalBlocks: number  // cumulative across all sites
 }
 ```
 
-**API** (`src/lib/storage.ts`):
-- `getStorage()` — Read current storage state
-- `addSite(domain)` — Add a site to the block list
-- `removeSite(domain)` — Remove a site from the block list
-- `incrementVisitCount(domain)` — Bump visit counter for a domain
-- `addPresetSites()` — Add 25 social media sites at once
-- `onStorageChange(callback)` — Subscribe to storage updates
+### Dual Backend
 
-### Domain Matching
+`src/lib/storage.ts` uses `chrome.storage.local` in extension context, falling back to `localStorage` for development and testing outside the extension. Detection:
 
-`src/lib/url-utils.ts` normalizes user input into clean domains:
-- `https://www.instagram.com/reels/` → `instagram.com`
-- `WWW.TWITTER.COM` → `twitter.com`
-- `reddit.com/r/programming` → `reddit.com`
+```typescript
+const isChromeExtension = typeof chrome !== 'undefined' && !!chrome.storage?.local
+```
 
-The service worker matches against both exact domain and subdomain patterns (`hostname === domain || hostname.endsWith('.' + domain)`).
+### API
 
-### Roast System
+| Function | Purpose |
+|----------|---------|
+| `getStorage()` | Read entire storage state |
+| `addSite(domain)` | Add domain (skips duplicates) |
+| `removeSite(domain)` | Remove domain |
+| `incrementVisitCount(domain)` | Bump visit counter + totalBlocks, returns new count |
+| `addPresetSites()` | Bulk-add 25 social media sites |
+| `onStorageChange(callback)` | Subscribe to storage updates |
 
-`src/lib/insults.ts` contains 35+ messages across 5 escalation tiers:
+## Roast System
+
+`src/lib/insults.ts` — 35+ messages across 5 tiers:
 
 | Tier | Visit Count | Tone | Example |
 |------|-------------|------|---------|
@@ -187,122 +254,128 @@ The service worker matches against both exact domain and subdomain patterns (`ho
 | 4 | 22–27 | Nuclear | "the FBI agent watching your screen submitted their two weeks notice" |
 | 5 | 28+ | Final Boss | "this website should charge u rent at this point fr fr" |
 
-### Blocked Page Sequence
+At 10+ visits, **Intervention Mode** activates: screen shake, 40 skulls (vs 20), and a warning badge.
 
-When the user lands on the blocked page, a 3-stage sequence plays:
+## Blocked Page Sequence
+
+Three phases play in order when the user lands on the blocked page:
 
 1. **White flash** — Instant full-screen white overlay
-2. **Flashbang** (2–5s) — Strobing colors, spinning/skewing text, hue rotation, rapid sound spam (10 sounds every 400ms)
-3. **Roast modal** — Displays the insult, visit count badge, comeback line, and a "Touch Grass" button (links to Google Maps parks search)
+2. **Flashbang** (2s + 3s per visit) — Strobing colors every 150ms, spinning/skewing text, hue rotation, sound spam (random sound every 400ms from 10 available sounds)
+3. **Roast modal** — The insult, visit count badge, comeback line, and "Touch Grass" button (Google Maps parks search)
 
-At 10+ visits, **Intervention Mode** activates: screen shake, 40 falling skull emojis (vs 20), and a special warning badge.
+Duration scales with addiction: 1st visit = 2s, 5th = 17s, 10th = 32s.
 
-### Themes
+## Sound System
 
-6 themes defined in `src/lib/themes.ts`, each setting CSS custom properties:
+`src/lib/sounds.ts` manages 10 sound effects: bruh, clown-horn, crickets, emergency-meeting, fart, record-scratch, rizz, sad-trombone, vine-boom, wow.
+
+| Function | Behavior |
+|----------|----------|
+| `playNextSound()` | Round-robin through sounds sequentially |
+| `playSound(name)` | Play specific sound (whitelist-validated against path traversal) |
+| `spamSounds(duration, interval)` | Random sounds every N ms for D duration |
+
+During flashbang: `spamSounds(flashDuration, 400)` — so a 32-second flashbang plays ~80 random sounds.
+
+## Theme System
+
+`src/lib/themes.ts` — 6 themes, each defining 18 CSS custom properties applied to document root. Selection persists via `localStorage`.
 
 | Theme | Mode | Palette |
 |-------|------|---------|
-| Skibidi Sigma | Dark | Neon green on void black |
-| Fanum Tax | Dark | Purple + magenta accents |
+| Skibidi Sigma | Dark | Neon green (#39ff14) on void black |
+| Fanum Tax | Dark | Deep purple (#c850ff) + hot magenta |
 | Rizz Mode | Light | Warm sunset coral on cream |
-| NPC Mode | Dark | Navy + cyan accents |
-| Ohio Final Boss | Light | Acid yellow, Y2K aesthetic |
+| NPC Mode | Dark | Muted navy + cyan |
+| Ohio Final Boss | Light | Acid yellow (#e8ff00) on black |
 | Aura Points | Dark | Forest green + warm gold |
 
-Theme selection persists via localStorage. CSS variables are applied dynamically to the document root.
+CSS variables set: `--background`, `--foreground`, `--card`, `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive`, `--border`, `--input`, `--ring` (plus foreground variants).
 
-### Animations
+## Animations
 
-All animations are defined in `src/index.css`:
+All defined in `src/index.css`:
 
-- `animate-flashbang` — 0.15s nuclear strobe + shake
-- `animate-flashbang-text` — Scale + rotation + skew chaos
-- `animate-flashbang-spin` — Continuous 360 rotation
-- `animate-flashbang-hue` — Hue rotation + saturation boost
-- `animate-fall` — Falling emoji with rotation (skull rain)
-- `animate-modal-enter` — Spring entrance for roast card
-- `animate-shake` — Gentle vibration (intervention mode)
-- `glitch-text` — Green/pink offset glitch effect
+| Animation | Duration | Purpose |
+|-----------|----------|---------|
+| `flashbang` | 0.15s infinite | Strobing colors + screen shake |
+| `flashbang-text` | 0.12s infinite | Scale + rotate + skew chaos |
+| `flashbang-spin` | 0.3s infinite | Continuous 360° rotation |
+| `flashbang-hue` | 0.2s infinite | Hue rotate + saturate |
+| `fall` | 3–7s | Skull rain emoji falling |
+| `modal-enter` | 0.6s | Spring entrance for roast card |
+| `shake` | 0.6s | Screen vibration (intervention) |
+| `popup-in` | 0.25s | Popup entrance, scale + fade |
 
-Visual effects include a grain overlay (SVG noise texture), vignette overlays, and glow shadows.
+Visual effects: grain overlay (SVG fractal noise at 3% opacity), glow utilities via `color-mix()`, glitch text (pink/green offset pseudo-elements), pride gradient border on blocked page.
 
----
+## Component Hierarchy
 
-## Install (Use It Right Now)
+### Popup
 
-1. [**Download the ZIP**](https://github.com/oranjan/touch-grass-tab/raw/main/touchgrasstab.zip)
-2. Unzip it
-3. Open **`chrome://extensions`** in Chrome (or `edge://extensions` in Edge)
-4. Enable **Developer mode** (toggle in the top right)
-5. Click **Load unpacked**
-6. Select the unzipped folder
-7. Done — try visiting a blocked site and get roasted
-
----
-
-## Getting Started (Development)
-
-### Prerequisites
-
-- Node.js 18+
-- npm
-
-### Install
-
-```bash
-npm install
+```
+App
+  ├── PopupHeader (logo + expand button)
+  ├── SiteInput (domain input form)
+  ├── Button "Block all social media"
+  ├── SiteList
+  │   └── SiteItem × N (favicon, domain, visit count badge, delete button)
+  └── StatsBar (sites blocked count, total interventions)
 ```
 
-### Development
+### Blocked Page
 
-```bash
-npm run dev
+```
+BlockedApp
+  ├── Phase 1: White flash overlay
+  ├── Phase 2: Flashbang layers (spinning text, hue rotation, tiled site name)
+  └── Phase 3: Main content
+      ├── Pride gradient background + vignette overlay
+      ├── SkullRain (20–40 falling emoji elements)
+      └── RoastModal
+          ├── Shame banner (flicker effect)
+          ├── Giant emoji (spin/bounce)
+          ├── Site callout (strikethrough domain)
+          ├── The roast (red text)
+          ├── Intervention divider (if 10+ visits)
+          ├── Shame counter (if 3+ visits)
+          └── "Touch Grass Now" button
 ```
 
-This starts the Vite dev server with hot reload. To test as an extension:
+## Security
 
-1. Run `npm run build`
-2. Open `chrome://extensions`
-3. Enable "Developer mode"
-4. Click "Load unpacked" and select the `dist/` folder
+- **URL parameter sanitization**: `?site=` stripped to only `[a-zA-Z0-9.\-]`, max 253 chars
+- **Sound whitelist**: `playSound()` validates against hardcoded list to prevent path traversal
+- **CSP**: Content Security Policy restricts script execution to extension-bundled code
+- **No external calls**: Fully self-contained, no CDN or API dependencies
+- **Chrome Storage isolation**: Each extension instance has its own storage
 
-### Build
-
-```bash
-npm run build
-```
-
-Outputs a production build to `dist/` ready to be loaded as an unpacked Chrome extension.
-
-### Test
+## Development
 
 ```bash
-npx vitest
+npm install          # Install dependencies
+npm run dev          # Vite dev server with HMR
+npm run build        # Production build → dist/
+npm run lint         # ESLint (350 char line limit)
+npx vitest           # Run 42 unit tests
 ```
 
-Runs the test suite (42 tests across 5 files covering storage, insults, URL utils, sounds, and themes).
+To test as a Chrome extension: `npm run build` → load `dist/` as unpacked extension in `chrome://extensions`.
 
-### Lint
+## Testing
 
-```bash
-npm run lint
-```
+42 unit tests across 5 files using Vitest + jsdom:
 
----
+| File | Tests | Coverage |
+|------|-------|----------|
+| `storage.test.ts` | 10 | Add, remove, increment, presets, duplicates |
+| `insults.test.ts` | 8 | Tier selection, randomness, boundary conditions |
+| `url-utils.test.ts` | 10 | Domain normalization edge cases |
+| `sounds.test.ts` | 6 | Playback, spam, whitelist validation |
+| `themes.test.ts` | 8 | Theme loading, CSS variable application |
 
-## Extension Permissions
-
-| Permission | Why |
-|-----------|-----|
-| `storage` | Persist blocked sites list and visit counts |
-| `webNavigation` | Detect when the user navigates to a blocked site |
-| `tabs` | Redirect blocked tabs to the roast page |
-| `<all_urls>` (host) | Required to intercept navigation to any website |
-
----
-
-## Key Files Quick Reference
+## Key Files Reference
 
 | File | Purpose |
 |------|---------|
@@ -317,8 +390,6 @@ npm run lint
 | `src/lib/url-utils.ts` | Domain normalization from any URL format |
 | `src/index.css` | All animations, effects, grain overlay, glows |
 | `vite.config.ts` | Build config with CRX plugin for extension bundling |
-
----
 
 ## License
 
