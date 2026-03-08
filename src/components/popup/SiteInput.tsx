@@ -22,6 +22,11 @@ export function SiteInput({ existingDomains, onSiteAdded }: SiteInputProps) {
       setError('Enter a valid domain like instagram.com')
       return
     }
+    const blocked = ['chrome-extension', 'chrome', 'edge', 'about', 'localhost']
+    if (blocked.some((b) => domain.startsWith(b))) {
+      setError("nice try bestie, can't block that")
+      return
+    }
     if (existingDomains.includes(domain)) {
       setError('Already blocked bestie')
       return

@@ -122,12 +122,16 @@ chrome.runtime.onInstalled.addListener(() => {
     id: 'block-current-site',
     title: 'Block this site with TouchGrassTab',
     contexts: ['page'],
+    documentUrlPatterns: ['http://*/*', 'https://*/*'],
   })
 })
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== 'block-current-site') return
   if (!tab?.url) return
+
+  // Don't allow blocking extension pages, chrome pages, etc.
+  if (!tab.url.startsWith('http://') && !tab.url.startsWith('https://')) return
 
   let hostname: string
   try {
