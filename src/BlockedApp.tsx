@@ -12,7 +12,7 @@ const PRIDE_GRADIENT = 'linear-gradient(135deg, #E40303, #FF8C00, #FFED00, #0080
 
 function sanitizeSite(raw: string | null): string {
   if (!raw) return 'unknown'
-  const cleaned = raw.replace(/[^a-zA-Z0-9.\-]/g, '')
+  const cleaned = raw.replace(/[^a-zA-Z0-9.-]/g, '')
   if (cleaned.length === 0 || cleaned.length > 253) return 'unknown'
   return cleaned
 }
