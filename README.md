@@ -4,6 +4,10 @@
 
 A Chrome extension that blocks distracting websites and roasts you with escalating Gen Z humor when you try to visit them. The more you try, the harder it hits.
 
+### [> Download TouchGrassTab (ZIP)](https://github.com/oranjan/touch-grass-tab/raw/main/touchgrasstab.zip)
+
+**Quick install:** Download the ZIP → Unzip → Open `chrome://extensions` → Enable Developer mode → Load unpacked → Select the folder → Done.
+
 ---
 
 ## Features
