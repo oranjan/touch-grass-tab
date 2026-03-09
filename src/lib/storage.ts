@@ -250,8 +250,8 @@ export async function setBlockAllMode(enabled: boolean): Promise<void> {
 export async function addSite(domain: string): Promise<void> {
   const { blockedSites, totalBlocks } = await getStorage()
   if (blockedSites.some((s) => s.domain === domain)) return
-  blockedSites.push({ domain, addedAt: Date.now(), visitCount: 0 })
-  await setStorage({ blockedSites, totalBlocks })
+  const updated = [...blockedSites, { domain, addedAt: Date.now(), visitCount: 0 }]
+  await setStorage({ blockedSites: updated, totalBlocks })
 }
 
 export async function removeSite(domain: string): Promise<void> {
@@ -262,24 +262,25 @@ export async function removeSite(domain: string): Promise<void> {
 
 export async function incrementVisitCount(domain: string): Promise<number> {
   const { blockedSites, totalBlocks } = await getStorage()
-  const site = blockedSites.find((s) => s.domain === domain)
-  if (!site) return 1
-  site.visitCount += 1
-  await setStorage({ blockedSites, totalBlocks: totalBlocks + 1 })
-  return site.visitCount
+  const index = blockedSites.findIndex((s) => s.domain === domain)
+  if (index === -1) return 1
+  const updated = blockedSites.map((s, i) =>
+    i === index ? { ...s, visitCount: s.visitCount + 1 } : s
+  )
+  await setStorage({ blockedSites: updated, totalBlocks: totalBlocks + 1 })
+  return updated[index].visitCount
 }
 
 export async function addPresetSites(presets: string[] = SOCIAL_MEDIA_PRESETS): Promise<number> {
   const { blockedSites, totalBlocks } = await getStorage()
-  let added = 0
-  for (const domain of presets) {
-    if (!blockedSites.some((s) => s.domain === domain)) {
-      blockedSites.push({ domain, addedAt: Date.now(), visitCount: 0 })
-      added++
-    }
+  const existingDomains = new Set(blockedSites.map((s) => s.domain))
+  const newSites = presets
+    .filter((d) => !existingDomains.has(d))
+    .map((domain) => ({ domain, addedAt: Date.now(), visitCount: 0 }))
+  if (newSites.length > 0) {
+    await setStorage({ blockedSites: [...blockedSites, ...newSites], totalBlocks })
   }
-  if (added > 0) await setStorage({ blockedSites, totalBlocks })
-  return added
+  return newSites.length
 }
 
 export async function removePresetSites(presets: string[]): Promise<number> {

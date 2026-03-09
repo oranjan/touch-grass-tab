@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, memo } from 'react'
 import { toast } from 'sonner'
 import {
   getStorage,
@@ -18,17 +18,21 @@ import { SiteInput } from '@/components/popup/SiteInput'
 import { SiteList } from '@/components/popup/SiteList'
 import { StatsBar } from '@/components/popup/StatsBar'
 
-function PresetGroup({
-  label,
-  presets,
-  blockedDomains,
-  onAction,
-}: {
+const PRESET_GROUPS = [
+  { label: 'Social Media', presets: SOCIAL_MEDIA_PRESETS },
+  { label: 'Top 30 Sites', presets: TOP_30_SITES },
+  { label: 'Adult Sites', presets: ADULT_SITES },
+  { label: 'All Preset Sites', presets: ALL_SITES },
+] as const
+
+interface PresetGroupProps {
   label: string
-  presets: string[]
+  presets: readonly string[]
   blockedDomains: Set<string>
   onAction: () => void
-}) {
+}
+
+const PresetGroup = memo(function PresetGroup({ label, presets, blockedDomains, onAction }: PresetGroupProps) {
   const [open, setOpen] = useState(false)
   const allBlocked = presets.every((d) => blockedDomains.has(d))
   const blockedCount = presets.filter((d) => blockedDomains.has(d)).length
@@ -55,7 +59,7 @@ function PresetGroup({
               className="h-7 rounded-lg text-[11px] px-3"
               onClick={async () => {
                 try {
-                  const added = await addPresetSites(presets)
+                  const added = await addPresetSites([...presets])
                   onAction()
                   if (added > 0) toast.success(`${added} sites blocked`)
                 } catch {
@@ -69,10 +73,10 @@ function PresetGroup({
             <Button
               variant="outline"
               size="sm"
-              className="h-7 rounded-lg text-[11px] px-3 border-red-500/30 text-red-400 hover:bg-red-500/10"
+              className="h-7 rounded-lg text-[11px] px-3 border-destructive/30 text-destructive hover:bg-destructive/10"
               onClick={async () => {
                 try {
-                  const removed = await removePresetSites(presets)
+                  const removed = await removePresetSites([...presets])
                   onAction()
                   if (removed > 0) toast.success(`${removed} sites unblocked`)
                 } catch {
@@ -102,7 +106,7 @@ function PresetGroup({
                 {isBlocked && (
                   <button
                     type="button"
-                    className="ml-1.5 text-red-400 hover:text-red-300"
+                    className="ml-1.5 text-destructive hover:text-destructive/80"
                     onClick={async () => {
                       try {
                         await removeSite(domain)
@@ -123,7 +127,7 @@ function PresetGroup({
       )}
     </div>
   )
-}
+})
 
 function App() {
   const isFullPage = useMemo(() => window.innerWidth > 400, [])
@@ -144,7 +148,7 @@ function App() {
     loadData()
   }, [loadData])
 
-  const handleRemove = async (domain: string) => {
+  const handleRemove = useCallback(async (domain: string) => {
     try {
       await removeSite(domain)
       loadData()
@@ -152,35 +156,31 @@ function App() {
     } catch {
       toast.error('Failed to remove site. Try again.')
     }
-  }
+  }, [loadData])
 
-  const handleExpand = () => {
+  const handleExpand = useCallback(() => {
     const url = chrome.runtime.getURL('index.html')
     chrome.tabs.create({ url })
     window.close()
-  }
+  }, [])
 
   const blockedDomains = useMemo(
     () => new Set(data.blockedSites.map((s) => s.domain)),
     [data.blockedSites],
   )
 
-  const content = (
-    <>
-      <PopupHeader onExpandClick={handleExpand} isFullPage={isFullPage} />
-      <SiteInput
-        existingDomains={data.blockedSites.map((s) => s.domain)}
-        onSiteAdded={loadData}
-      />
-      <SiteList sites={data.blockedSites} onRemove={handleRemove} />
-      <StatsBar siteCount={data.blockedSites.length} totalBlocks={data.totalBlocks} />
-    </>
+  const existingDomains = useMemo(
+    () => data.blockedSites.map((s) => s.domain),
+    [data.blockedSites],
   )
 
   if (!isFullPage) {
     return (
       <div className="animate-popup-in flex h-120 w-90 flex-col overflow-hidden rounded-2xl bg-background text-foreground">
-        {content}
+        <PopupHeader onExpandClick={handleExpand} isFullPage={false} />
+        <SiteInput existingDomains={existingDomains} onSiteAdded={loadData} />
+        <SiteList sites={data.blockedSites} onRemove={handleRemove} />
+        <StatsBar siteCount={data.blockedSites.length} totalBlocks={data.totalBlocks} />
       </div>
     )
   }
@@ -203,42 +203,24 @@ function App() {
         <div className="animate-popup-in overflow-hidden rounded-2xl border border-border/40 bg-card shadow-xl shadow-primary/5 sm:rounded-3xl">
           {/* Input section */}
           <div className="border-b border-border/40 px-4 py-5 sm:px-8 sm:py-6">
-            <SiteInput
-              existingDomains={data.blockedSites.map((s) => s.domain)}
-              onSiteAdded={loadData}
-            />
+            <SiteInput existingDomains={existingDomains} onSiteAdded={loadData} />
           </div>
 
           {/* Bulk block groups */}
           <div className="border-b border-border/40 px-4 py-4 sm:px-8 space-y-2">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Quick block</h3>
-            <PresetGroup
-              label="Social Media"
-              presets={SOCIAL_MEDIA_PRESETS}
-              blockedDomains={blockedDomains}
-              onAction={loadData}
-            />
-            <PresetGroup
-              label="Top 30 Sites"
-              presets={TOP_30_SITES}
-              blockedDomains={blockedDomains}
-              onAction={loadData}
-            />
-            <PresetGroup
-              label="Adult Sites"
-              presets={ADULT_SITES}
-              blockedDomains={blockedDomains}
-              onAction={loadData}
-            />
-            <PresetGroup
-              label="All Preset Sites"
-              presets={ALL_SITES}
-              blockedDomains={blockedDomains}
-              onAction={loadData}
-            />
+            {PRESET_GROUPS.map((group) => (
+              <PresetGroup
+                key={group.label}
+                label={group.label}
+                presets={group.presets}
+                blockedDomains={blockedDomains}
+                onAction={loadData}
+              />
+            ))}
 
             {/* Block Everything toggle */}
-            <div className={`rounded-xl border overflow-hidden ${data.blockAllMode ? 'border-red-500/40 bg-red-500/5' : 'border-border/40'}`}>
+            <div className={`rounded-xl border overflow-hidden ${data.blockAllMode ? 'border-destructive/40 bg-destructive/5' : 'border-border/40'}`}>
               <div className="flex items-center justify-between gap-3 px-4 py-3">
                 <div>
                   <span className="text-sm font-medium">Block Everything</span>
@@ -251,7 +233,7 @@ function App() {
                   size="sm"
                   className={`h-7 rounded-lg text-[11px] px-3 shrink-0 ${
                     data.blockAllMode
-                      ? 'border-red-500/30 text-red-400 hover:bg-red-500/10'
+                      ? 'border-destructive/30 text-destructive hover:bg-destructive/10'
                       : ''
                   }`}
                   onClick={async () => {

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { BlockedSite } from '@/lib/storage'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -8,22 +9,23 @@ interface SiteItemProps {
 }
 
 export function SiteItem({ site, onRemove }: SiteItemProps) {
+  const [faviconFailed, setFaviconFailed] = useState(false)
   const faviconUrl = `https://www.google.com/s2/favicons?domain=${site.domain}&sz=32`
 
   return (
     <div className="group flex items-center gap-2.5 rounded-xl border border-border/50 bg-secondary/60 px-3 py-2 transition-all hover:border-border hover:bg-secondary">
-      <img
-        src={faviconUrl}
-        alt=""
-        width={16}
-        height={16}
-        className="h-4 w-4 rounded-sm"
-        onError={(e) => {
-          e.currentTarget.style.display = 'none'
-          e.currentTarget.nextElementSibling?.classList.remove('hidden')
-        }}
-      />
-      <span className="hidden text-sm" aria-hidden="true">&#x1F480;</span>
+      {faviconFailed ? (
+        <span className="text-sm" aria-hidden="true">&#x1F480;</span>
+      ) : (
+        <img
+          src={faviconUrl}
+          alt=""
+          width={16}
+          height={16}
+          className="h-4 w-4 rounded-sm"
+          onError={() => setFaviconFailed(true)}
+        />
+      )}
       <span className="flex-1 truncate text-sm font-medium text-foreground">
         {site.domain}
       </span>

@@ -1,11 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import { loadSavedTheme } from './lib/themes'
+import { initTheme } from './lib/themes'
 import { Toaster } from './components/ui/sonner'
 import App from './App.tsx'
 
-loadSavedTheme()
+initTheme()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

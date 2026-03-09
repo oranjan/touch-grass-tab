@@ -39,52 +39,37 @@ async function shouldBlock(url: string): Promise<string | null> {
 // Track tabs we've already redirected to avoid infinite loops
 const redirectedTabs = new Set<number>()
 
-// Use tabs.onUpdated to catch ALL navigations, including 302 redirects from Google
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-  if (!changeInfo.url) return
-  if (changeInfo.url.startsWith(chrome.runtime.getURL(''))) {
+function blockedPageUrl(domain: string): string {
+  return chrome.runtime.getURL(`blocked.html?site=${encodeURIComponent(domain)}`)
+}
+
+async function tryRedirect(tabId: number, url: string) {
+  if (url.startsWith(chrome.runtime.getURL(''))) {
     redirectedTabs.delete(tabId)
     return
   }
   if (redirectedTabs.has(tabId)) return
 
-  const domain = await shouldBlock(changeInfo.url)
+  const domain = await shouldBlock(url)
   if (!domain) return
 
   redirectedTabs.add(tabId)
-  chrome.tabs.update(tabId, {
-    url: chrome.runtime.getURL(`blocked.html?site=${encodeURIComponent(domain)}`),
-  })
+  chrome.tabs.update(tabId, { url: blockedPageUrl(domain) })
+}
+
+// Catch ALL navigations including 302 redirects from Google
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.url) tryRedirect(tabId, changeInfo.url)
 })
 
 // Catch initial navigations before they start
-chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
-  if (details.frameId !== 0) return
-  if (details.url.startsWith(chrome.runtime.getURL(''))) return
-  if (redirectedTabs.has(details.tabId)) return
-
-  const domain = await shouldBlock(details.url)
-  if (!domain) return
-
-  redirectedTabs.add(details.tabId)
-  chrome.tabs.update(details.tabId, {
-    url: chrome.runtime.getURL(`blocked.html?site=${encodeURIComponent(domain)}`),
-  })
+chrome.webNavigation.onBeforeNavigate.addListener((details) => {
+  if (details.frameId === 0) tryRedirect(details.tabId, details.url)
 })
 
 // Catch navigations AFTER server-side redirects resolve (e.g. google.com/url → instagram.com)
-chrome.webNavigation.onCommitted.addListener(async (details) => {
-  if (details.frameId !== 0) return
-  if (details.url.startsWith(chrome.runtime.getURL(''))) return
-  if (redirectedTabs.has(details.tabId)) return
-
-  const domain = await shouldBlock(details.url)
-  if (!domain) return
-
-  redirectedTabs.add(details.tabId)
-  chrome.tabs.update(details.tabId, {
-    url: chrome.runtime.getURL(`blocked.html?site=${encodeURIComponent(domain)}`),
-  })
+chrome.webNavigation.onCommitted.addListener((details) => {
+  if (details.frameId === 0) tryRedirect(details.tabId, details.url)
 })
 
 // Clean up when a tab finishes loading our blocked page or is closed
@@ -135,10 +120,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
   // Redirect the current tab to the blocked page
   if (tab.id) {
-    const blockedUrl = chrome.runtime.getURL(
-      `blocked.html?site=${encodeURIComponent(domain)}`
-    )
     redirectedTabs.add(tab.id)
-    chrome.tabs.update(tab.id, { url: blockedUrl })
+    chrome.tabs.update(tab.id, { url: blockedPageUrl(domain) })
   }
 })

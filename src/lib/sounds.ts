@@ -9,7 +9,7 @@ const SOUNDS = [
   'sad-trombone.mp3',
   'vine-boom.mp3',
   'wow.mp3',
-]
+] as const
 
 let soundIndex = 0
 
@@ -20,7 +20,7 @@ export function playNextSound(): void {
 }
 
 export function playSound(name: string): void {
-  if (!SOUNDS.includes(name)) return
+  if (!SOUNDS.includes(name as typeof SOUNDS[number])) return
   const url = typeof chrome !== 'undefined' && chrome.runtime?.getURL
     ? chrome.runtime.getURL(`sounds/${name}`)
     : `/sounds/${name}`
@@ -29,14 +29,16 @@ export function playSound(name: string): void {
   audio.play().catch(() => {})
 }
 
-/** Spam random sounds every `intervalMs` for `durationMs` */
-export function spamSounds(durationMs: number, intervalMs: number): void {
+/** Spam random sounds every `intervalMs` for `durationMs`. Returns a cancel function. */
+export function spamSounds(durationMs: number, intervalMs: number): () => void {
+  let cancelled = false
   const end = Date.now() + durationMs
   const tick = () => {
-    if (Date.now() >= end) return
+    if (cancelled || Date.now() >= end) return
     const sound = SOUNDS[Math.floor(Math.random() * SOUNDS.length)]
     playSound(sound)
     setTimeout(tick, intervalMs)
   }
   tick()
+  return () => { cancelled = true }
 }

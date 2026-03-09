@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { addSite } from '@/lib/storage'
-import { normalizeDomain } from '@/lib/url-utils'
+import { normalizeDomain, validateDomain } from '@/lib/url-utils'
 
 interface SiteInputProps {
   existingDomains: string[]
@@ -19,13 +19,9 @@ export function SiteInput({ existingDomains, onSiteAdded }: SiteInputProps) {
     setError('')
 
     const domain = normalizeDomain(value)
-    if (!domain || !domain.includes('.')) {
-      setError('Enter a valid domain like instagram.com')
-      return
-    }
-    const blocked = ['chrome-extension', 'chrome', 'edge', 'about', 'localhost']
-    if (blocked.some((b) => domain.startsWith(b))) {
-      setError("nice try bestie, can't block that")
+    const validationError = validateDomain(domain)
+    if (validationError) {
+      setError(validationError)
       return
     }
     if (existingDomains.includes(domain)) {

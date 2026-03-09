@@ -7,42 +7,68 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-    /* SKIBIDI SIGMA - default brainrot theme, neon grind on void */
-    --background: #050505;
-    --foreground: #f0fff0;
-    --card: #0a0f0a;
-    --card-foreground: #f0fff0;
-    --popover: #0a0f0a;
-    --popover-foreground: #e8ffe8;
+    --radius: 0.625rem;
+}
+
+/* ═══════════════════════════════════════════
+   LIGHT / DARK MODE
+   Follows browser prefers-color-scheme.
+   JS adds .dark on <html> at startup.
+   ═══════════════════════════════════════════ */
+
+/* Light mode (default) */
+:root {
+    --background: #fafafa;
+    --foreground: #0a0a0a;
+    --card: #ffffff;
+    --card-foreground: #0a0a0a;
+    --popover: #ffffff;
+    --popover-foreground: #0a0a0a;
+    --primary: #16a34a;
+    --primary-foreground: #ffffff;
+    --secondary: #f0f0f0;
+    --secondary-foreground: #1a1a1a;
+    --muted: #f0f0f0;
+    --muted-foreground: #6b7280;
+    --accent: #e84393;
+    --accent-foreground: #ffffff;
+    --destructive: #dc2626;
+    --border: #e5e5e5;
+    --input: #e5e5e5;
+    --ring: #16a34a44;
+    --chart-1: #16a34a;
+    --chart-2: #e84393;
+    --chart-3: #0ea5e9;
+    --chart-4: #f59e0b;
+    --chart-5: #8b5cf6;
+}
+
+/* Dark mode */
+.dark {
+    --background: #0a0a0a;
+    --foreground: #f0f0f0;
+    --card: #111111;
+    --card-foreground: #f0f0f0;
+    --popover: #111111;
+    --popover-foreground: #f0f0f0;
     --primary: #39ff14;
     --primary-foreground: #020502;
-    --secondary: #0d1a0d;
-    --secondary-foreground: #b8ffb8;
-    --muted: #0d1a0d;
-    --muted-foreground: #4a8a4a;
+    --secondary: #1a1a1a;
+    --secondary-foreground: #d4d4d4;
+    --muted: #1a1a1a;
+    --muted-foreground: #737373;
     --accent: #ff2d6f;
-    --accent-foreground: #fff0f5;
+    --accent-foreground: #ffffff;
     --destructive: #ff3131;
-    --border: #1a3a1a;
-    --input: #0f1f0f;
+    --border: #262626;
+    --input: #1a1a1a;
     --ring: #39ff1466;
     --chart-1: #39ff14;
     --chart-2: #ff2d6f;
     --chart-3: #00d4ff;
     --chart-4: #ffc857;
     --chart-5: #c850ff;
-    --radius: 0.625rem;
-    --sidebar: #0a0f0a;
-    --sidebar-foreground: #e8ffe8;
-    --sidebar-primary: #39ff14;
-    --sidebar-primary-foreground: #020502;
-    --sidebar-accent: #0d1a0d;
-    --sidebar-accent-foreground: #b8ffb8;
-    --sidebar-border: #1a3a1a;
-    --sidebar-ring: #39ff1466;
 }
-
-/* .dark not needed — themes applied via JS on :root */
 
 @theme inline {
     --font-sans: 'Outfit Variable', sans-serif;

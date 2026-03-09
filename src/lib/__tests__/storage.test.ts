@@ -9,7 +9,7 @@ import {
 } from '../storage'
 
 const STORAGE_KEY = 'touchgrasstab'
-const EMPTY = JSON.stringify({ blockedSites: [], totalBlocks: 0 })
+const EMPTY = JSON.stringify({ blockedSites: [], totalBlocks: 0, blockAllMode: false })
 
 describe('storage (localStorage fallback)', () => {
   beforeEach(() => {
@@ -21,11 +21,11 @@ describe('storage (localStorage fallback)', () => {
   describe('getStorage', () => {
     it('returns defaults when storage is empty', async () => {
       const data = await getStorage()
-      expect(data).toEqual({ blockedSites: [], totalBlocks: 0 })
+      expect(data).toEqual({ blockedSites: [], totalBlocks: 0, blockAllMode: false })
     })
 
     it('returns stored data', async () => {
-      const stored = { blockedSites: [{ domain: 'x.com', addedAt: 1, visitCount: 3 }], totalBlocks: 5 }
+      const stored = { blockedSites: [{ domain: 'x.com', addedAt: 1, visitCount: 3 }], totalBlocks: 5, blockAllMode: false }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
       const data = await getStorage()
       expect(data).toEqual(stored)
@@ -34,7 +34,7 @@ describe('storage (localStorage fallback)', () => {
     it('returns defaults for corrupted JSON', async () => {
       localStorage.setItem(STORAGE_KEY, '{{invalid}')
       const data = await getStorage()
-      expect(data).toEqual({ blockedSites: [], totalBlocks: 0 })
+      expect(data).toEqual({ blockedSites: [], totalBlocks: 0, blockAllMode: false })
     })
   })
 

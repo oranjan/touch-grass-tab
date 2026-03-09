@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { incrementVisitCount } from '@/lib/storage'
 import { getInsult, getRandomPageTitle, getRandomEmoji } from '@/lib/insults'
 import { playNextSound, spamSounds } from '@/lib/sounds'
-import { loadSavedTheme } from '@/lib/themes'
+import { initTheme, isDarkMode } from '@/lib/themes'
 import { RoastModal } from '@/components/blocked/RoastModal'
 import { SkullRain } from '@/components/blocked/SkullRain'
 
@@ -53,9 +53,11 @@ export function BlockedApp() {
 
   const gradient = PRIDE_GRADIENT
 
-  // Load user's saved theme so blocked page matches their light/dark preference
-  const theme = useMemo(() => loadSavedTheme(), [])
-  const isDark = theme.tag === 'Dark'
+  // Sync dark/light with browser preference
+  const isDark = useMemo(() => {
+    initTheme()
+    return isDarkMode()
+  }, [])
 
   useEffect(() => {
     document.title = initial.pageTitle
@@ -87,16 +89,20 @@ export function BlockedApp() {
     if (!loaded || annoyanceDone) return
 
     // Spam sounds every 400ms for the full flashbang duration
+    let cancelSpam: (() => void) | undefined
     if (!soundSpammed.current) {
       soundSpammed.current = true
-      spamSounds(flashDuration, 400)
+      cancelSpam = spamSounds(flashDuration, 400)
     }
 
     // Cycle text every 150ms
     const interval = setInterval(() => {
       setFlashText((i) => (i + 1) % FLASHBANG_TEXTS.length)
     }, 150)
-    return () => clearInterval(interval)
+    return () => {
+      clearInterval(interval)
+      cancelSpam?.()
+    }
   }, [loaded, annoyanceDone, flashDuration])
 
   // Before data loads — blinding white
