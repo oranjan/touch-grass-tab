@@ -2,11 +2,21 @@
 
 **Block sites. Get roasted. Touch grass.**
 
-A Chrome extension that blocks distracting websites and roasts you with escalating Gen Z humor when you try to visit them. The more you try, the harder it hits.
+A browser extension that blocks any site you wish to. If you try to visit, it roasts the hell out of you.
+
+Works on all Chromium-based browsers: **Google Chrome**, **Brave**, **Microsoft Edge**, **Opera**, and **Vivaldi**.
 
 ### [> Download TouchGrassTab (ZIP)](https://github.com/oranjan/touch-grass-tab/raw/main/touchgrasstab.zip)
 
 **Quick install:** Download the ZIP > Unzip > Open `chrome://extensions` > Enable Developer mode > Load unpacked > Select the folder > Done.
+
+---
+
+## Screenshots
+
+| Popup (compact mode) | Full page (extended mode) | Right-click to block any site |
+|:---:|:---:|:---:|
+| ![Popup view](public/input-site-ss.png) | ![Extended mode with bulk presets](public/block-bulk-sites-in-extended-mode.png) | ![Block site from context menu](public/block-individual-site-ss.png) |
 
 ---
 
@@ -27,8 +37,9 @@ The punishment escalates. First visit? A quick 2-second flash and a mild roast. 
 - **Escalating Roasts** — 5 tiers of insults that get progressively harsher (mild > medium > harsh > nuclear > final boss).
 - **Flashbang Mode** — Strobing colors, spinning text, hue rotation, and 10 sound effects spamming every 400ms.
 - **Intervention Mode** — After 10+ visits: screen shake, double the skull rain, warning badges.
-- **6 Themes** — Skibidi Sigma, Fanum Tax, Rizz Mode, NPC Mode, Ohio Final Boss, Aura Points.
-- **Social Media Presets** — One click to block 25 common social media sites.
+- **Bulk Block Presets** — 4 preset groups: Social Media (19 sites), Top 30 Sites, Adult Sites (32 sites), and All Sites (139+ sites). One-click block/unblock.
+- **Block Everything Mode** — Nuclear option that redirects every single website.
+- **Dark/Light Mode** — Automatically matches your browser's system preference.
 - **Visit Tracking** — Per-site and total counters so you can see your shame in numbers.
 - **Touch Grass Button** — Google Maps parks search. Go outside.
 - **Reduced Motion Support** — Respects `prefers-reduced-motion` for accessibility.
@@ -43,16 +54,6 @@ The punishment escalates. First visit? A quick 2-second flash and a mild roast. 
 6. Select the unzipped folder
 7. Done — try visiting a blocked site and get roasted
 
-## Themes
-
-| Theme | Vibe |
-|-------|------|
-| Skibidi Sigma | Neon green on void black, terminal grindset |
-| Fanum Tax | Purple + magenta, main character energy |
-| Rizz Mode | Warm sunset coral on cream, touch grass aesthetic |
-| NPC Mode | Navy + cyan, lo-fi zen vibes |
-| Ohio Final Boss | Acid yellow, Y2K maximalist chaos |
-| Aura Points | Forest green + warm gold, anti-hustle |
 
 ## Permissions
 
@@ -61,14 +62,15 @@ The punishment escalates. First visit? A quick 2-second flash and a mild roast. 
 | `storage` | Save your blocked sites and visit counts |
 | `webNavigation` | Detect when you navigate to a blocked site |
 | `tabs` | Redirect your tab to the roast page |
-| `<all_urls>` | Needed to intercept navigation to any website |
+| `contextMenus` | Right-click context menu integration |
+| `<all_urls>` (host) | Needed to intercept navigation to any website |
 
 ---
 ---
 
 # Technical Documentation
 
-Everything below is the technical breakdown of how the extension works — architecture, data flow, file structure, and implementation details. This section is for developers, AI agents, and anyone who wants to understand or contribute to the codebase.
+Everything below is the technical breakdown of how the extension works: architecture, data flow, file structure, and implementation details. This section is for developers, AI agents, and anyone who wants to understand or contribute to the codebase.
 
 ---
 
@@ -90,12 +92,15 @@ Everything below is the technical breakdown of how the extension works — archi
 ```
 TouchGrassTab/
 ├── public/
+│   ├── icons/                       # Extension icons (PNG)
+│   │   ├── icon.png, icon-16.png, icon-32.png
+│   │   ├── icon-48.png, icon-128.png
 │   ├── sounds/                      # 10 sound effects (.mp3)
 │   │   ├── bruh.mp3, clown-horn.mp3, crickets.mp3
 │   │   ├── emergency-meeting.mp3, fart.mp3
 │   │   ├── record-scratch.mp3, rizz.mp3
 │   │   ├── sad-trombone.mp3, vine-boom.mp3, wow.mp3
-│   └── touchgrass.svg               # Extension icon
+│   └── touchgrass.svg               # SVG logo
 │
 ├── src/
 │   ├── main.tsx                     # Popup React entry point
@@ -117,13 +122,13 @@ TouchGrassTab/
 │   │   │   ├── RoastModal.tsx       # Roast message card with comeback + CTA
 │   │   │   └── SkullRain.tsx        # Falling emoji animation overlay
 │   │   └── ui/                      # Shadcn base components
-│   │       ├── button.tsx, badge.tsx, input.tsx, card.tsx
+│   │       ├── button.tsx, badge.tsx, input.tsx, card.tsx, sonner.tsx
 │   │
 │   └── lib/                         # Utility modules
 │       ├── storage.ts               # Chrome storage API wrapper + localStorage fallback
 │       ├── insults.ts               # Roast messages (5 tiers), page titles, emojis, comebacks
 │       ├── sounds.ts                # Sound playback (sequential + spam modes)
-│       ├── themes.ts                # 6 theme definitions + CSS variable application
+│       ├── themes.ts                # Dark/light mode detection + initialization
 │       ├── url-utils.ts             # Domain normalization (URL → clean domain)
 │       ├── utils.ts                 # cn() helper (clsx + tailwind-merge)
 │       └── __tests__/               # Unit tests (42 tests across 5 files)
@@ -134,7 +139,7 @@ TouchGrassTab/
 ├── vite.config.ts                   # Vite + CRX plugin config
 ├── tsconfig.json / tsconfig.app.json
 ├── components.json                  # Shadcn UI configuration
-├── eslint.config.js                 # ESLint rules (350 line max per file)
+├── eslint.config.js                 # ESLint rules (350 line max for tsx/jsx)
 └── package.json                     # Dependencies and scripts
 ```
 
@@ -219,7 +224,8 @@ interface BlockedSite {
 
 interface StorageData {
   blockedSites: BlockedSite[]
-  totalBlocks: number  // cumulative across all sites
+  totalBlocks: number    // cumulative across all sites
+  blockAllMode: boolean  // block every website (nuclear option)
 }
 ```
 
@@ -239,7 +245,9 @@ const isChromeExtension = typeof chrome !== 'undefined' && !!chrome.storage?.loc
 | `addSite(domain)` | Add domain (skips duplicates) |
 | `removeSite(domain)` | Remove domain |
 | `incrementVisitCount(domain)` | Bump visit counter + totalBlocks, returns new count |
-| `addPresetSites()` | Bulk-add 25 social media sites |
+| `setBlockAllMode(enabled)` | Toggle block-everything mode |
+| `addPresetSites(presets?)` | Bulk-add sites (defaults to social media preset) |
+| `removePresetSites(presets)` | Bulk-remove sites by preset array |
 | `onStorageChange(callback)` | Subscribe to storage updates |
 
 ## Roast System
@@ -280,18 +288,14 @@ During flashbang: `spamSounds(flashDuration, 400)` — so a 32-second flashbang 
 
 ## Theme System
 
-`src/lib/themes.ts` — 6 themes, each defining 18 CSS custom properties applied to document root. Selection persists via `localStorage`.
+`src/lib/themes.ts` — Dark/light mode based on the browser's system preference (`prefers-color-scheme`).
 
-| Theme | Mode | Palette |
-|-------|------|---------|
-| Skibidi Sigma | Dark | Neon green (#39ff14) on void black |
-| Fanum Tax | Dark | Deep purple (#c850ff) + hot magenta |
-| Rizz Mode | Light | Warm sunset coral on cream |
-| NPC Mode | Dark | Muted navy + cyan |
-| Ohio Final Boss | Light | Acid yellow (#e8ff00) on black |
-| Aura Points | Dark | Forest green + warm gold |
+| Function | Purpose |
+|----------|---------|
+| `initTheme()` | Detect system preference and apply dark/light class to document |
+| `isDarkMode()` | Returns whether dark mode is currently active |
 
-CSS variables set: `--background`, `--foreground`, `--card`, `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive`, `--border`, `--input`, `--ring` (plus foreground variants).
+CSS variables for colors are defined in `src/index.css` and switch based on the `.dark` class on the document root.
 
 ## Animations
 
@@ -318,7 +322,10 @@ Visual effects: grain overlay (SVG fractal noise at 3% opacity), glow utilities 
 App
   ├── PopupHeader (logo + expand button)
   ├── SiteInput (domain input form)
-  ├── Button "Block all social media"
+  ├── Block Everything Mode toggle
+  ├── PresetGroup × 4 (Social Media, Top 30, Adult Sites, All Sites)
+  │   ├── Block all / Unblock all buttons
+  │   └── Expandable domain list with individual remove
   ├── SiteList
   │   └── SiteItem × N (favicon, domain, visit count badge, delete button)
   └── StatsBar (sites blocked count, total interventions)
@@ -357,7 +364,7 @@ BlockedApp
 npm install          # Install dependencies
 npm run dev          # Vite dev server with HMR
 npm run build        # Production build → dist/
-npm run lint         # ESLint (350 char line limit)
+npm run lint         # ESLint (350 line limit for tsx/jsx)
 npx vitest           # Run 42 unit tests
 ```
 
@@ -373,7 +380,7 @@ To test as a Chrome extension: `npm run build` → load `dist/` as unpacked exte
 | `insults.test.ts` | 8 | Tier selection, randomness, boundary conditions |
 | `url-utils.test.ts` | 10 | Domain normalization edge cases |
 | `sounds.test.ts` | 6 | Playback, spam, whitelist validation |
-| `themes.test.ts` | 8 | Theme loading, CSS variable application |
+| `themes.test.ts` | 8 | Dark/light mode detection, class toggling |
 
 ## Key Files Reference
 
@@ -386,7 +393,7 @@ To test as a Chrome extension: `npm run build` → load `dist/` as unpacked exte
 | `src/lib/storage.ts` | Chrome storage wrapper with localStorage fallback |
 | `src/lib/insults.ts` | 35+ tiered roast messages, page titles, emojis |
 | `src/lib/sounds.ts` | Sound playback engine (sequential + spam) |
-| `src/lib/themes.ts` | 6 theme definitions with CSS variable application |
+| `src/lib/themes.ts` | Dark/light mode detection and initialization |
 | `src/lib/url-utils.ts` | Domain normalization from any URL format |
 | `src/index.css` | All animations, effects, grain overlay, glows |
 | `vite.config.ts` | Build config with CRX plugin for extension bundling |
