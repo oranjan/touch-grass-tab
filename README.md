@@ -14,9 +14,14 @@ Works on all Chromium-based browsers: **Google Chrome**, **Brave**, **Microsoft 
 
 ## Screenshots
 
-| Popup (compact mode) | Full page (extended mode) | Right-click to block any site |
-|:---:|:---:|:---:|
-| ![Popup view](public/input-site-ss.png) | ![Extended mode with bulk presets](public/block-bulk-sites-in-extended-mode.png) | ![Block site from context menu](public/block-individual-site-ss.png) |
+**Popup (compact mode)**
+![Popup view](public/input-site-ss.png)
+
+**Full page (extended mode)**
+![Extended mode with bulk presets](public/block-bulk-sites-in-extended-mode.png)
+
+**Right-click to block any site**
+![Block site from context menu](public/block-individual-site-ss.png)
 
 ---
 
