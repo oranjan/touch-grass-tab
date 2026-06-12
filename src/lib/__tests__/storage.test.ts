@@ -6,10 +6,12 @@ import {
   removeSite,
   incrementVisitCount,
   addPresetSites,
+  addTimeSpent,
+  clearTimeSpent,
 } from '../storage'
 
 const STORAGE_KEY = 'touchgrasstab'
-const EMPTY = JSON.stringify({ blockedSites: [], totalBlocks: 0, blockAllMode: false })
+const EMPTY = JSON.stringify({ blockedSites: [], totalBlocks: 0, blockAllMode: false, timeSpent: {} })
 
 describe('storage (localStorage fallback)', () => {
   beforeEach(() => {
@@ -21,20 +23,28 @@ describe('storage (localStorage fallback)', () => {
   describe('getStorage', () => {
     it('returns defaults when storage is empty', async () => {
       const data = await getStorage()
-      expect(data).toEqual({ blockedSites: [], totalBlocks: 0, blockAllMode: false })
+      expect(data).toEqual({ blockedSites: [], totalBlocks: 0, blockAllMode: false, timeSpent: {} })
     })
 
     it('returns stored data', async () => {
-      const stored = { blockedSites: [{ domain: 'x.com', addedAt: 1, visitCount: 3 }], totalBlocks: 5, blockAllMode: false }
+      const stored = { blockedSites: [{ domain: 'x.com', addedAt: 1, visitCount: 3 }], totalBlocks: 5, blockAllMode: false, timeSpent: { 'x.com': 1000 } }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
       const data = await getStorage()
       expect(data).toEqual(stored)
     })
 
+    it('backfills missing fields from defaults', async () => {
+      // Data saved before timeSpent existed must still load cleanly.
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ blockedSites: [], totalBlocks: 2, blockAllMode: false }))
+      const data = await getStorage()
+      expect(data.timeSpent).toEqual({})
+      expect(data.totalBlocks).toBe(2)
+    })
+
     it('returns defaults for corrupted JSON', async () => {
       localStorage.setItem(STORAGE_KEY, '{{invalid}')
       const data = await getStorage()
-      expect(data).toEqual({ blockedSites: [], totalBlocks: 0, blockAllMode: false })
+      expect(data).toEqual({ blockedSites: [], totalBlocks: 0, blockAllMode: false, timeSpent: {} })
     })
   })
 
@@ -124,6 +134,45 @@ describe('storage (localStorage fallback)', () => {
       await addSite(SOCIAL_MEDIA_PRESETS[0])
       const added = await addPresetSites()
       expect(added).toBe(SOCIAL_MEDIA_PRESETS.length - 1)
+    })
+  })
+
+  describe('addTimeSpent', () => {
+    it('records time for a new domain', async () => {
+      await addTimeSpent('youtube.com', 5000)
+      const { timeSpent } = await getStorage()
+      expect(timeSpent['youtube.com']).toBe(5000)
+    })
+
+    it('accumulates time across calls', async () => {
+      await addTimeSpent('reddit.com', 3000)
+      await addTimeSpent('reddit.com', 2000)
+      const { timeSpent } = await getStorage()
+      expect(timeSpent['reddit.com']).toBe(5000)
+    })
+
+    it('tracks domains independently', async () => {
+      await addTimeSpent('a.com', 1000)
+      await addTimeSpent('b.com', 2000)
+      const { timeSpent } = await getStorage()
+      expect(timeSpent).toEqual({ 'a.com': 1000, 'b.com': 2000 })
+    })
+
+    it('ignores non-positive durations and empty domains', async () => {
+      await addTimeSpent('zero.com', 0)
+      await addTimeSpent('neg.com', -1000)
+      await addTimeSpent('', 5000)
+      const { timeSpent } = await getStorage()
+      expect(timeSpent).toEqual({})
+    })
+  })
+
+  describe('clearTimeSpent', () => {
+    it('wipes all recorded time', async () => {
+      await addTimeSpent('youtube.com', 5000)
+      await clearTimeSpent()
+      const { timeSpent } = await getStorage()
+      expect(timeSpent).toEqual({})
     })
   })
 })

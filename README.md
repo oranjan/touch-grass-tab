@@ -34,7 +34,9 @@ You add websites you want to stop visiting. When you try to open one, the extens
 - A **skull rain** — falling emoji chaos raining down on your screen
 - A **"Touch Grass" button** — opens Google Maps to find parks near you
 
-The punishment escalates. First visit? A quick 2-second flash and a mild roast. Tenth visit? 32 seconds of chaos, screen shaking, 40 falling skulls, and an "INTERVENTION MODE" warning. It's designed to make you not want to come back.
+The punishment escalates. First visit? A 5-second flash and a mild roast. Tenth visit? 32 seconds of chaos, screen shaking, 40 falling skulls, and an "INTERVENTION MODE" warning. It's designed to make you not want to come back.
+
+Open the full-page dashboard (the expand button in the popup) and it also tracks **how much time you actually spend on each website** — a running screen-time leaderboard so you can see exactly where your hours go.
 
 ## Features
 
@@ -42,10 +44,11 @@ The punishment escalates. First visit? A quick 2-second flash and a mild roast. 
 - **Escalating Roasts** — 5 tiers of insults that get progressively harsher (mild > medium > harsh > nuclear > final boss).
 - **Flashbang Mode** — Strobing colors, spinning text, hue rotation, and 10 sound effects spamming every 400ms.
 - **Intervention Mode** — After 10+ visits: screen shake, double the skull rain, warning badges.
-- **Bulk Block Presets** — 4 preset groups: Social Media (19 sites), Top 30 Sites, Adult Sites (32 sites), and All Sites (139+ sites). One-click block/unblock.
+- **Bulk Block Presets** — 4 preset groups: Social Media (19), Top 30 Sites (31), Adult Sites (27), and All Preset Sites (147 deduped). One-click block/unblock.
 - **Block Everything Mode** — Nuclear option that redirects every single website.
 - **Dark/Light Mode** — Automatically matches your browser's system preference.
 - **Visit Tracking** — Per-site and total counters so you can see your shame in numbers.
+- **Screen Time Tracking** — The full-page view ranks how long you've actively spent on every website you visit, with a one-click reset. Counting pauses when you're idle or Chrome isn't focused.
 - **Touch Grass Button** — Google Maps parks search. Go outside.
 - **Reduced Motion Support** — Respects `prefers-reduced-motion` for accessibility.
 
@@ -64,10 +67,12 @@ The punishment escalates. First visit? A quick 2-second flash and a mild roast. 
 
 | Permission | Why |
 |-----------|-----|
-| `storage` | Save your blocked sites and visit counts |
+| `storage` | Save your blocked sites, visit counts, and screen time |
 | `webNavigation` | Detect when you navigate to a blocked site |
-| `tabs` | Redirect your tab to the roast page |
+| `tabs` | Redirect your tab to the roast page; read the active tab for time tracking |
 | `contextMenus` | Right-click context menu integration |
+| `idle` | Pause time tracking when you step away from the keyboard |
+| `alarms` | Heartbeat that keeps screen-time totals accurate |
 | `<all_urls>` (host) | Needed to intercept navigation to any website |
 
 ---
@@ -122,7 +127,8 @@ TouchGrassTab/
 │   │   │   ├── SiteInput.tsx        # Domain input form
 │   │   │   ├── SiteList.tsx         # Scrollable list of blocked sites
 │   │   │   ├── SiteItem.tsx         # Single site row (favicon, domain, count, delete)
-│   │   │   └── StatsBar.tsx         # Footer stats (sites blocked, total interventions)
+│   │   │   ├── StatsBar.tsx         # Footer stats (sites blocked, total interventions)
+│   │   │   └── TimeSpentList.tsx    # Screen-time ranking (full page only)
 │   │   ├── blocked/                 # Blocked page components
 │   │   │   ├── RoastModal.tsx       # Roast message card with comeback + CTA
 │   │   │   └── SkullRain.tsx        # Falling emoji animation overlay
@@ -135,8 +141,9 @@ TouchGrassTab/
 │       ├── sounds.ts                # Sound playback (sequential + spam modes)
 │       ├── themes.ts                # Dark/light mode detection + initialization
 │       ├── url-utils.ts             # Domain normalization (URL → clean domain)
+│       ├── time-tracker.ts          # Screen-time helpers (domain extraction, capping, formatting)
 │       ├── utils.ts                 # cn() helper (clsx + tailwind-merge)
-│       └── __tests__/               # Unit tests (42 tests across 5 files)
+│       └── __tests__/               # Unit tests (69 tests across 6 files)
 │
 ├── index.html                       # Popup HTML shell
 ├── blocked.html                     # Blocked page HTML shell
@@ -158,7 +165,7 @@ The extension has three independent entry points that never share runtime contex
 
 2. **Blocked Page** (`blocked.html` → `blocked-main.tsx` → `BlockedApp.tsx`) — The full-page roast experience shown when a user tries to visit a blocked site. Receives the blocked domain via `?site=` query parameter.
 
-3. **Service Worker** (`background.ts`) — Runs in the background with no UI. Listens to Chrome navigation events and redirects matching tabs to `blocked.html`.
+3. **Service Worker** (`background.ts`) — Runs in the background with no UI. Listens to Chrome navigation events and redirects matching tabs to `blocked.html`. It also measures active time spent on each website (see [Time Tracking](#time-tracking)).
 
 ### Data Flow
 
@@ -229,8 +236,9 @@ interface BlockedSite {
 
 interface StorageData {
   blockedSites: BlockedSite[]
-  totalBlocks: number    // cumulative across all sites
-  blockAllMode: boolean  // block every website (nuclear option)
+  totalBlocks: number                 // cumulative across all sites
+  blockAllMode: boolean               // block every website (nuclear option)
+  timeSpent: Record<string, number>   // domain → active ms spent browsing
 }
 ```
 
@@ -253,19 +261,44 @@ const isChromeExtension = typeof chrome !== 'undefined' && !!chrome.storage?.loc
 | `setBlockAllMode(enabled)` | Toggle block-everything mode |
 | `addPresetSites(presets?)` | Bulk-add sites (defaults to social media preset) |
 | `removePresetSites(presets)` | Bulk-remove sites by preset array |
+| `addTimeSpent(domain, ms)` | Add active browsing time to a domain's running total |
+| `clearTimeSpent()` | Reset all screen-time data |
 | `onStorageChange(callback)` | Subscribe to storage updates |
+
+## Time Tracking
+
+The service worker measures how long you actively spend on each website, and the full-page view surfaces it as a ranked screen-time list (`TimeSpentList`). The popup mirrors live updates via `onStorageChange`.
+
+### How it works
+
+A single **active session** (`{ domain, since }`) describes the page you're currently looking at. It's persisted in `chrome.storage.local` (not worker memory) so it survives the service worker being suspended between events. Five signals move it forward:
+
+- `chrome.tabs.onActivated` / `onUpdated` — you switched to, or navigated, the active tab
+- `chrome.windows.onFocusChanged` — Chrome gained or lost OS focus
+- `chrome.idle.onStateChanged` (60s threshold) — you stepped away or came back
+- `chrome.alarms` heartbeat (every 1 min) — keeps long single-page sessions accruing
+
+On each signal the open session's elapsed time is credited to its domain, then a new session begins for whatever is now in the foreground — but only while the browser is focused **and** the user is active. Time stops accruing the moment you blur Chrome or go idle.
+
+### Accuracy safeguards
+
+- **Capped flushes** — each credit is clamped to `MAX_FLUSH_MS` (90s). If the worker was suspended (e.g. laptop sleep), a stale session can't dump hours of phantom time onto a domain.
+- **Normalized domains** — tracked with the same `normalizeDomain` rules as blocked sites, so `www.` is stripped and totals line up.
+- **Web-only** — `chrome://`, extension pages, `file://`, and the new-tab page are never tracked.
+
+Pure, unit-tested helpers (`trackableDomain`, `cappedElapsed`, `formatDuration`) live in `src/lib/time-tracker.ts`; the Chrome event wiring and session bookkeeping live in `src/background.ts`.
 
 ## Roast System
 
-`src/lib/insults.ts` — 35+ messages across 5 tiers:
+`src/lib/insults.ts` — 36 messages across 5 tiers:
 
 | Tier | Visit Count | Tone | Example |
 |------|-------------|------|---------|
-| 1 | 1–7 | Mild | "bro really said 'one more scroll' for the 47th time today" |
-| 2 | 8–14 | Medium | "your ancestors survived the black plague for you to be on THIS app?" |
-| 3 | 15–21 | Harsh | "GIRL. THE DELULU IS NOT THE SOLULU." |
-| 4 | 22–27 | Nuclear | "the FBI agent watching your screen submitted their two weeks notice" |
-| 5 | 28+ | Final Boss | "this website should charge u rent at this point fr fr" |
+| 1 | 1–7 | Mild | "bro really said 'one more scroll' and meant it ironically 💀" |
+| 2 | 8–14 | Medium | "your ancestors survived the black plague so you could do THIS?? 🗿" |
+| 3 | 15–21 | Harsh | "GIRL. THE DELULU IS NOT THE SOLULU HERE." |
+| 4 | 22–27 | Nuclear | "the FBI agent watching your screen just submitted their two weeks notice" |
+| 5 | 28+ | Final Boss | "this website should charge u rent, emotional support fees, AND a late checkout penalty" |
 
 At 10+ visits, **Intervention Mode** activates: screen shake, 40 skulls (vs 20), and a warning badge.
 
@@ -277,7 +310,7 @@ Three phases play in order when the user lands on the blocked page:
 2. **Flashbang** (2s + 3s per visit) — Strobing colors every 150ms, spinning/skewing text, hue rotation, sound spam (random sound every 400ms from 10 available sounds)
 3. **Roast modal** — The insult, visit count badge, comeback line, and "Touch Grass" button (Google Maps parks search)
 
-Duration scales with addiction: 1st visit = 2s, 5th = 17s, 10th = 32s.
+Duration scales with addiction (`2000ms + visitCount × 3000ms`): 1st block = 5s, 5th = 17s, 10th = 32s.
 
 ## Sound System
 
@@ -323,17 +356,22 @@ Visual effects: grain overlay (SVG fractal noise at 3% opacity), glow utilities 
 
 ### Popup
 
+The compact popup renders only the header, input, blocked-site list, and stats.
+The full-page view (`window.innerWidth > 400`) adds the preset groups, the
+Block Everything toggle, and the screen-time list.
+
 ```
 App
   ├── PopupHeader (logo + expand button)
   ├── SiteInput (domain input form)
-  ├── Block Everything Mode toggle
-  ├── PresetGroup × 4 (Social Media, Top 30, Adult Sites, All Sites)
+  ├── PresetGroup × 4 (Social Media, Top 30, Adult Sites, All Preset Sites) — full page only
   │   ├── Block all / Unblock all buttons
   │   └── Expandable domain list with individual remove
+  ├── Block Everything Mode toggle — full page only
   ├── SiteList
   │   └── SiteItem × N (favicon, domain, visit count badge, delete button)
-  └── StatsBar (sites blocked count, total interventions)
+  ├── StatsBar (sites blocked count, total interventions)
+  └── TimeSpentList (screen time per site, ranked) — full page only
 ```
 
 ### Blocked Page
@@ -370,29 +408,30 @@ npm install          # Install dependencies
 npm run dev          # Vite dev server with HMR
 npm run build        # Production build → dist/
 npm run lint         # ESLint (350 line limit for tsx/jsx)
-npx vitest           # Run 42 unit tests
+npx vitest           # Run 69 unit tests
 ```
 
 To test as a Chrome extension: `npm run build` → load `dist/` as unpacked extension in `chrome://extensions`.
 
 ## Testing
 
-42 unit tests across 5 files using Vitest + jsdom:
+69 unit tests across 6 files using Vitest + jsdom:
 
 | File | Tests | Coverage |
 |------|-------|----------|
-| `storage.test.ts` | 10 | Add, remove, increment, presets, duplicates |
-| `insults.test.ts` | 8 | Tier selection, randomness, boundary conditions |
-| `url-utils.test.ts` | 10 | Domain normalization edge cases |
-| `sounds.test.ts` | 6 | Playback, spam, whitelist validation |
-| `themes.test.ts` | 8 | Dark/light mode detection, class toggling |
+| `storage.test.ts` | 20 | Add, remove, increment, presets, time tracking, duplicates |
+| `insults.test.ts` | 13 | Tier selection, randomness, boundary conditions |
+| `time-tracker.test.ts` | 13 | Domain extraction, elapsed capping, duration formatting |
+| `url-utils.test.ts` | 12 | Domain normalization edge cases |
+| `sounds.test.ts` | 7 | Playback, spam, whitelist validation |
+| `themes.test.ts` | 4 | Dark/light mode detection, class toggling |
 
 ## Key Files Reference
 
 | File | Purpose |
 |------|---------|
 | `manifest.json` | Chrome extension configuration (MV3) |
-| `src/background.ts` | Service worker — intercepts blocked site navigation |
+| `src/background.ts` | Service worker — intercepts blocked navigation + tracks per-site time |
 | `src/App.tsx` | Popup UI — manage blocked sites |
 | `src/BlockedApp.tsx` | Blocked page — flashbang + roast experience |
 | `src/lib/storage.ts` | Chrome storage wrapper with localStorage fallback |
@@ -400,6 +439,7 @@ To test as a Chrome extension: `npm run build` → load `dist/` as unpacked exte
 | `src/lib/sounds.ts` | Sound playback engine (sequential + spam) |
 | `src/lib/themes.ts` | Dark/light mode detection and initialization |
 | `src/lib/url-utils.ts` | Domain normalization from any URL format |
+| `src/lib/time-tracker.ts` | Screen-time helpers (domain extraction, capping, formatting) |
 | `src/index.css` | All animations, effects, grain overlay, glows |
 | `vite.config.ts` | Build config with CRX plugin for extension bundling |
 

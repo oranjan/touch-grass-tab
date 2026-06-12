@@ -7,7 +7,9 @@
     "storage",
     "webNavigation",
     "tabs",
-    "contextMenus"
+    "contextMenus",
+    "idle",
+    "alarms"
   ],
   "host_permissions": [
     "<all_urls>"

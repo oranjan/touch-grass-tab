@@ -6,6 +6,8 @@ import {
   addPresetSites,
   removePresetSites,
   setBlockAllMode,
+  clearTimeSpent,
+  onStorageChange,
   SOCIAL_MEDIA_PRESETS,
   TOP_30_SITES,
   ADULT_SITES,
@@ -17,6 +19,7 @@ import { PopupHeader } from '@/components/popup/PopupHeader'
 import { SiteInput } from '@/components/popup/SiteInput'
 import { SiteList } from '@/components/popup/SiteList'
 import { StatsBar } from '@/components/popup/StatsBar'
+import { TimeSpentList } from '@/components/popup/TimeSpentList'
 
 const PRESET_GROUPS = [
   { label: 'Social Media', presets: SOCIAL_MEDIA_PRESETS },
@@ -136,6 +139,7 @@ function App() {
     blockedSites: [],
     totalBlocks: 0,
     blockAllMode: false,
+    timeSpent: {},
   })
 
   const loadData = useCallback(() => {
@@ -146,6 +150,8 @@ function App() {
 
   useEffect(() => {
     loadData()
+    // Keep screen-time and counts live while the page stays open.
+    return onStorageChange(setData)
   }, [loadData])
 
   const handleRemove = useCallback(async (domain: string) => {
@@ -163,6 +169,16 @@ function App() {
     chrome.tabs.create({ url })
     window.close()
   }, [])
+
+  const handleClearTime = useCallback(async () => {
+    try {
+      await clearTimeSpent()
+      loadData()
+      toast.success('Screen time cleared')
+    } catch {
+      toast.error('Failed to clear screen time')
+    }
+  }, [loadData])
 
   const blockedDomains = useMemo(
     () => new Set(data.blockedSites.map((s) => s.domain)),
@@ -266,6 +282,13 @@ function App() {
 
           {/* Stats footer */}
           <StatsBar siteCount={data.blockedSites.length} totalBlocks={data.totalBlocks} />
+        </div>
+
+        {/* Screen time — where your hours actually go (full page only) */}
+        <div className="animate-popup-in mt-6 overflow-hidden rounded-2xl border border-border/40 bg-card shadow-xl shadow-primary/5 sm:rounded-3xl">
+          <div className="px-4 py-5 sm:px-8 sm:py-6">
+            <TimeSpentList timeSpent={data.timeSpent} onClear={handleClearTime} />
+          </div>
         </div>
       </div>
     </div>

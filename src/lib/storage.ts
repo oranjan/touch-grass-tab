@@ -201,9 +201,11 @@ export interface StorageData {
   blockedSites: BlockedSite[]
   totalBlocks: number
   blockAllMode: boolean
+  /** Active browsing time per domain, in milliseconds. Tracked by the service worker. */
+  timeSpent: Record<string, number>
 }
 
-const DEFAULTS: StorageData = { blockedSites: [], totalBlocks: 0, blockAllMode: false }
+const DEFAULTS: StorageData = { blockedSites: [], totalBlocks: 0, blockAllMode: false, timeSpent: {} }
 const STORAGE_KEY = 'touchgrasstab'
 
 const isChromeExtension = typeof chrome !== 'undefined' && !!chrome.storage?.local
@@ -212,7 +214,8 @@ function getLocalStorage(): StorageData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return { ...DEFAULTS }
-    return JSON.parse(raw) as StorageData
+    // Merge over defaults so newly-added fields (e.g. timeSpent) are always present.
+    return { ...DEFAULTS, ...(JSON.parse(raw) as Partial<StorageData>) }
   } catch {
     return { ...DEFAULTS }
   }
@@ -231,6 +234,7 @@ export async function getStorage(): Promise<StorageData> {
     blockedSites: (data.blockedSites as BlockedSite[] | undefined) ?? DEFAULTS.blockedSites,
     totalBlocks: (data.totalBlocks as number | undefined) ?? DEFAULTS.totalBlocks,
     blockAllMode: (data.blockAllMode as boolean | undefined) ?? DEFAULTS.blockAllMode,
+    timeSpent: (data.timeSpent as Record<string, number> | undefined) ?? DEFAULTS.timeSpent,
   }
 }
 
@@ -290,6 +294,29 @@ export async function removePresetSites(presets: string[]): Promise<number> {
   const removed = blockedSites.length - filtered.length
   if (removed > 0) await setStorage({ blockedSites: filtered, totalBlocks })
   return removed
+}
+
+/**
+ * Add `ms` of active browsing time to a domain's running total.
+ * Reads/writes only the `timeSpent` key to minimise the read-modify-write
+ * race window with the popup, which mutates other keys.
+ */
+export async function addTimeSpent(domain: string, ms: number): Promise<void> {
+  if (!domain || ms <= 0) return
+  if (!isChromeExtension) {
+    const current = getLocalStorage()
+    const timeSpent = { ...current.timeSpent, [domain]: (current.timeSpent[domain] ?? 0) + ms }
+    setLocalStorage({ ...current, timeSpent })
+    return
+  }
+  const data = await chrome.storage.local.get(['timeSpent'])
+  const existing = (data.timeSpent as Record<string, number> | undefined) ?? {}
+  const timeSpent = { ...existing, [domain]: (existing[domain] ?? 0) + ms }
+  await chrome.storage.local.set({ timeSpent })
+}
+
+export async function clearTimeSpent(): Promise<void> {
+  await setStorage({ timeSpent: {} })
 }
 
 export function onStorageChange(

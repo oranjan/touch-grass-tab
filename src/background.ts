@@ -1,5 +1,6 @@
-import type { BlockedSite } from './lib/storage'
+import { addTimeSpent, type BlockedSite } from './lib/storage'
 import { normalizeDomain } from './lib/url-utils'
+import { cappedElapsed, trackableDomain } from './lib/time-tracker'
 
 async function getBlockConfig(): Promise<{ domains: string[]; blockAll: boolean }> {
   const data = await chrome.storage.local.get(['blockedSites', 'blockAllMode'])
@@ -124,3 +125,129 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     chrome.tabs.update(tab.id, { url: blockedPageUrl(domain) })
   }
 })
+
+// ───────────────────────────────────────────────────────────────────────────
+// Time tracking — how long the user actively spends on each website.
+//
+// We keep one "active session" ({ domain, since }) describing the page the user
+// is currently looking at. When the foreground page changes, the browser loses
+// focus, or the user goes idle, we credit the elapsed time to that domain and
+// either start a new session or stop. A 1-minute heartbeat alarm keeps long
+// single-page sessions accruing and bounds over-counting after suspension.
+//
+// Session state lives in chrome.storage.local (not module memory) so it
+// survives the service worker being suspended between events.
+// ───────────────────────────────────────────────────────────────────────────
+
+interface ActiveSession {
+  domain: string
+  since: number
+}
+
+const ACTIVE_SESSION_KEY = 'tt_activeSession'
+const BROWSER_FOCUSED_KEY = 'tt_browserFocused'
+const TICK_ALARM = 'tt-tick'
+const IDLE_SECONDS = 60
+
+async function getActiveSession(): Promise<ActiveSession | null> {
+  const data = await chrome.storage.local.get([ACTIVE_SESSION_KEY])
+  return (data[ACTIVE_SESSION_KEY] as ActiveSession | undefined) ?? null
+}
+
+async function setActiveSession(session: ActiveSession | null): Promise<void> {
+  await chrome.storage.local.set({ [ACTIVE_SESSION_KEY]: session })
+}
+
+async function isBrowserFocused(): Promise<boolean> {
+  const data = await chrome.storage.local.get([BROWSER_FOCUSED_KEY])
+  // Default to focused: on a fresh worker we assume the user is looking at Chrome.
+  return (data[BROWSER_FOCUSED_KEY] as boolean | undefined) ?? true
+}
+
+async function setBrowserFocused(focused: boolean): Promise<void> {
+  await chrome.storage.local.set({ [BROWSER_FOCUSED_KEY]: focused })
+}
+
+async function isUserActive(): Promise<boolean> {
+  try {
+    return (await chrome.idle.queryState(IDLE_SECONDS)) === 'active'
+  } catch {
+    return true // idle API unavailable → don't block tracking
+  }
+}
+
+async function currentForegroundDomain(): Promise<string | null> {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
+    return trackableDomain(tab?.url)
+  } catch {
+    return null
+  }
+}
+
+async function creditSession(session: ActiveSession | null, now: number): Promise<void> {
+  if (!session) return
+  const ms = cappedElapsed(session.since, now)
+  if (ms > 0) await addTimeSpent(session.domain, ms)
+}
+
+// Credit the open session and stop tracking entirely (blur / idle / lock).
+async function stopTracking(now: number): Promise<void> {
+  const prev = await getActiveSession()
+  if (!prev) return
+  await creditSession(prev, now)
+  await setActiveSession(null)
+}
+
+// Credit the open session and rebase onto whatever is in the foreground now.
+async function rebaseTracking(now: number): Promise<void> {
+  const prev = await getActiveSession()
+  await creditSession(prev, now)
+
+  const trackable = (await isBrowserFocused()) && (await isUserActive())
+  const domain = trackable ? await currentForegroundDomain() : null
+
+  if (domain) {
+    await setActiveSession({ domain, since: now })
+  } else if (prev) {
+    await setActiveSession(null)
+  }
+}
+
+chrome.tabs.onActivated.addListener(() => {
+  rebaseTracking(Date.now())
+})
+
+chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
+  // The active tab navigated to a new URL — switch the session's domain.
+  if (tab.active && changeInfo.url) rebaseTracking(Date.now())
+})
+
+chrome.windows.onFocusChanged.addListener(async (windowId) => {
+  const now = Date.now()
+  const focused = windowId !== chrome.windows.WINDOW_ID_NONE
+  await setBrowserFocused(focused)
+  if (focused) await rebaseTracking(now)
+  else await stopTracking(now)
+})
+
+chrome.idle.onStateChanged.addListener((state) => {
+  const now = Date.now()
+  if (state === 'active') rebaseTracking(now)
+  else stopTracking(now)
+})
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === TICK_ALARM) rebaseTracking(Date.now())
+})
+
+function initTimeTracking(): void {
+  chrome.idle.setDetectionInterval(IDLE_SECONDS)
+  chrome.alarms.create(TICK_ALARM, { periodInMinutes: 1 })
+}
+
+// Set the idle interval on every worker spin-up (idempotent); (re)create the
+// heartbeat alarm on install and browser startup.
+chrome.idle.setDetectionInterval(IDLE_SECONDS)
+chrome.runtime.onInstalled.addListener(initTimeTracking)
+chrome.runtime.onStartup.addListener(initTimeTracking)
